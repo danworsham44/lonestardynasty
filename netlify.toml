@@ -1,2 +1,2 @@
 [functions."refresh-weekly-rankings"]
-  schedule = "0 13 * * 2,3,4"
+  schedule = "0 13 * * 3,4,5,6"
