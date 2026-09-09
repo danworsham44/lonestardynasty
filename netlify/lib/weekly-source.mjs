@@ -18,7 +18,7 @@ async function cbs(pos,week){
  const r=await get(url); if(!r.ok)throw Object.assign(new Error(`CBS ${pos} HTTP ${r.status}`),{diag:r});
  const out=[];
  for(const tr of r.body.matchAll(/<tr\b[^>]*>([\s\S]*?)<\/tr>/gi)){
-   const c=cells(tr[1]); if(c.length<12)continue;
+   const c=cells(tr[1]); if(c.length<3)continue;
    const name=cbsName(c[0],pos); if(!name)continue;
    // fpts is second-to-last in the CBS table (fppg is last). For Week 1 they are equal.
    const nums=c.slice(1).map(x=>Number(String(x).replace(/,/g,'').replace(/[^\d.-]/g,'')));
@@ -30,27 +30,53 @@ async function cbs(pos,week){
 }
 function dsName(raw,pos){
  let s=clean(raw).replace(/^Image:\s*[A-Z]{2,3}\s+logo\s*/i,'');
- // DraftSharks visually splits the first name after its first letter (C.eeDee, J.ustin, P.uka).
- s=s.replace(/^([A-Z])\.(?=[a-z'’])/,'$1');
+ // DraftSharks sometimes splits the first name after its first letter (C.eeDee, J.ustin, P.uka).
+ s=s.replace(/^([A-Z])\.(?=[a-z'â])/,'$1');
  s=s.replace(new RegExp(`\\s+[A-Z]{2,3}\\s+${pos}\\d+\\s*$`,'i'),'').trim();
  return s;
 }
-async function ds(pos,week){
- const url=`https://www.draftsharks.com/weekly-rankings/${pos.toLowerCase()}/ppr?week=${week}`;
- const r=await get(url); if(!r.ok)throw Object.assign(new Error(`DraftSharks ${pos} HTTP ${r.status}`),{diag:r});
+function dsValidName(name){
+ const s=clean(name);
+ // Reject the JS-placeholder form DraftSharks sometimes serves: "DAL 5", "CHI 3", etc.
+ if(!s||/^[A-Z]{2,3}\s+(?:[A-Z]{1,3})?\d+$/i.test(s)||/^[A-Z]{2,3}\s+\d+$/i.test(s))return false;
+ return /[A-Za-z].*[A-Za-z]/.test(s) && !/^Image:/i.test(s);
+}
+function parseDs(body,pos){
  const out=[];
- for(const tr of r.body.matchAll(/<tr\b[^>]*>([\s\S]*?)<\/tr>/gi)){
+ for(const tr of body.matchAll(/<tr\b[^>]*>([\s\S]*?)<\/tr>/gi)){
    const c=cells(tr[1]); if(c.length<8)continue;
    const rank=Number(c[0].replace(/[^\d]/g,'')); if(!rank)continue;
-   const name=dsName(c[1],pos); if(!name)continue;
+   const name=dsName(c[1],pos); if(!dsValidName(name))continue;
    // RK, Player, Matchup, SOS, Bye, Floor, Consensus, DS, Ceiling, 3D
    const dsProj=Number(String(c[7]||'').replace(/[^\d.-]/g,''));
    const consensus=Number(String(c[6]||'').replace(/[^\d.-]/g,''));
    const projection=Number.isFinite(dsProj)?dsProj:consensus;
    if(Number.isFinite(projection)&&projection>=0&&projection<80)out.push({name,position:pos,dsRank:rank,dsProjection:projection});
  }
- if(out.length<8)throw Object.assign(new Error(`DraftSharks ${pos} parsed ${out.length}`),{diag:{...r,body:undefined,parsed:out.length,sample:out.slice(0,3)}});
- return {rows:out,diag:{source:'DraftSharks',position:pos,url,status:r.status,bytes:r.bytes,parsed:out.length,ms:r.ms}};
+ return out;
+}
+async function ds(pos,week){
+ // DS occasionally serves a hydrated placeholder table (team + rank, but no player name)
+ // on one URL shape. Try equivalent public Week URLs and keep the first one with real names.
+ const urls=[
+   `https://www.draftsharks.com/weekly-rankings/${week}/${pos.toLowerCase()}/ppr`,
+   `https://www.draftsharks.com/weekly-rankings/${pos.toLowerCase()}/ppr?week=${week}&sort=fanDuel.dollarsPerPoint`,
+   `https://www.draftsharks.com/weekly-rankings/${pos.toLowerCase()}/ppr?week=${week}`
+ ];
+ let best=null,last=null;
+ for(const url of urls){
+   const r=await get(url); last=r;
+   if(!r.ok)continue;
+   const rows=parseDs(r.body,pos);
+   if(!best||rows.length>best.rows.length)best={rows,r};
+   if(rows.length>=8)break;
+ }
+ if(best&&best.rows.length>=8){
+   const r=best.r;
+   return {rows:best.rows,diag:{source:'DraftSharks',position:pos,url:r.url,status:r.status,bytes:r.bytes,parsed:best.rows.length,ms:r.ms}};
+ }
+ const parsed=best?.rows?.length||0;
+ throw Object.assign(new Error(`DraftSharks ${pos} parsed ${parsed} real player names`),{diag:{source:'DraftSharks',position:pos,url:best?.r?.url||last?.url||urls[0],status:best?.r?.status||last?.status||0,bytes:best?.r?.bytes||last?.bytes||0,parsed,ms:best?.r?.ms||last?.ms||0,sample:best?.rows?.slice(0,3)||[]}});
 }
 async function footballers(pos){
  const slug={QB:'quarterback',RB:'running-back',WR:'wide-receiver',TE:'tight-end'}[pos];
