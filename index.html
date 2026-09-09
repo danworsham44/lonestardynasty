@@ -7389,16 +7389,16 @@ function v130Card(P,E,T,label){
 }
 function v130Score(P,E,T){
  const vals=[];
- function add(v,w){if(Number.isFinite(Number(v))&&Number(v)>0)vals.push([v,w])}
- add(v62SleeperScore(P.projection,P.pos),.22);
- const ecr=v62EcrScore(E); if(ecr!=null)vals.push([ecr,.16]);
- if(Number(E?.expertProjection)>0)add(v62SleeperScore(E.expertProjection,P.pos),.18);
- if(Number(T?.cbsProjection)>0)add(v62SleeperScore(T.cbsProjection,P.pos),.14);
- if(Number(T?.dsProjection)>0)add(v62SleeperScore(T.dsProjection,P.pos),.12);
- if(T?.dsRank)add(Math.max(0,110-Number(T.dsRank)*3),.06);
- if(T?.espnRank)add(Math.max(0,110-Number(T.espnRank)*3),.06);
- if(T?.ballersRank)add(Math.max(0,110-Number(T.ballersRank)*3),.06);
- const w=vals.reduce((a,x)=>a+x[1],0)||1;return vals.reduce((a,x)=>a+x[0]*x[1],0)/w;
+ function add(v,w){v=Number(v);if(Number.isFinite(v)&&v>=0)vals.push([v,w])}
+ // Start/sit projections are already expressed in the same PPR-point currency, even across positions.
+ // Do not normalize TE/WR/RB/QB to different positional anchors here; that can make a lower projected
+ // player win a cross-position comparison. Positional ranks remain a same-position context/tiebreaker only.
+ add(P.projection,.30);
+ add(E?.expertProjection,.25);
+ add(T?.cbsProjection,.20);
+ add(T?.dsProjection,.25);
+ const w=vals.reduce((a,x)=>a+x[1],0)||1;
+ return vals.reduce((a,x)=>a+x[0]*x[1],0)/w;
 }
 function v130Reason(A,B,Ae,Be,At,Bt,W){
  const L=W===A?B:A,We=W===A?Ae:Be,Le=W===A?Be:Ae,Wt=W===A?At:Bt,Lt=W===A?Bt:At,votes=[];
@@ -7412,7 +7412,7 @@ function v130Reason(A,B,Ae,Be,At,Bt,W){
  const proj=[['Sleeper',W.projection,L.projection],['FantasyPros',We?.expertProjection,Le?.expertProjection],['CBS',Wt?.cbsProjection,Lt?.cbsProjection],['DraftSharks',Wt?.dsProjection,Lt?.dsProjection]]
   .filter(x=>Number.isFinite(Number(x[1]))&&Number.isFinite(Number(x[2]))&&Number(x[1])!==Number(x[2]));
  if(proj.length){const x=proj.sort((a,b)=>Math.abs(Number(b[1])-Number(b[2]))-Math.abs(Number(a[1])-Number(a[2])))[0],d=Number(x[1])-Number(x[2]);parts.push(`${x[0]} ${d>0?'favors '+W.p.name:'favors '+L.p.name} by ${Math.abs(d).toFixed(1)} points.`)}
- const ranks=[['FantasyPros',We?.rank,Le?.rank],['DraftSharks',Wt?.dsRank,Lt?.dsRank],['ESPN',Wt?.espnRank,Lt?.espnRank],['Fantasy Footballers',Wt?.ballersRank,Lt?.ballersRank]].filter(x=>Number(x[1])&&Number(x[2])&&Number(x[1])!==Number(x[2]));
+ const ranks=W.pos===L.pos?[['FantasyPros',We?.rank,Le?.rank],['DraftSharks',Wt?.dsRank,Lt?.dsRank],['ESPN',Wt?.espnRank,Lt?.espnRank],['Fantasy Footballers',Wt?.ballersRank,Lt?.ballersRank]].filter(x=>Number(x[1])&&Number(x[2])&&Number(x[1])!==Number(x[2])):[];
  if(ranks.length){const x=ranks[0];parts.push(`${x[0]} ranks ${Number(x[1])<Number(x[2])?W.p.name:L.p.name} higher at ${W.pos}${Math.min(x[1],x[2])} vs ${W.pos}${Math.max(x[1],x[2])}.`)}
  return parts.slice(0,3).join(' ')||`${W.p.name} has the stronger combined weekly profile across the available sources.`;
 }
@@ -7420,7 +7420,7 @@ function v124BaseVerdict(A,B,Ae,Be,At=null,Bt=null){
  const unavailable=x=>['OUT','IR','PUP','SUSP','SUSPENDED','NFI'].includes(String(x||'').toUpperCase());
  const Astatus=String(A.p?.injuryStatus||'').toUpperCase(),Bstatus=String(B.p?.injuryStatus||'').toUpperCase(),Aout=unavailable(Astatus),Bout=unavailable(Bstatus);
  const As=Aout?-999:v130Score(A,Ae,At),Bs=Bout?-999:v130Score(B,Be,Bt),W=As>=Bs?A:B,diff=Math.abs(As-Bs);
- const title=Aout&&Bout?'Neither Player Is Available':((Aout||Bout)?'Start '+W.p.name:(diff<2?'Too Close To Call':'Start '+W.p.name));
+ const title=Aout&&Bout?'Neither Player Is Available':((Aout||Bout)?'Start '+W.p.name:(diff<0.75?'Too Close To Call':'Start '+W.p.name));
  return {title,Aout,Bout,Astatus,Bstatus,W,diff};
 }
 async function v124Render(el){
