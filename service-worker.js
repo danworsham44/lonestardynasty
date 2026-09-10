@@ -1,4 +1,4 @@
-const CACHE_NAME = 'lone-star-dynasty-v136-parser-fix';
+const CACHE_NAME = 'lone-star-dynasty-v138-lsd-live-clean';
 const APP_SHELL = [
   './',
   './index.html',

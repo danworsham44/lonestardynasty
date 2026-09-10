@@ -7250,18 +7250,26 @@ try{
 
 function v119Gameday(){
  const root=document.getElementById('lsdGamedayV119');if(!root)return;
- const week=Number(state.displayWeek||state.week||1);document.getElementById('v119GdStatus').textContent=`WEEK ${week}`;
+ const week=Number(state.displayWeek||state.week||1),season=String(state.league?.season||2026);document.getElementById('v119GdStatus').textContent=`WEEK ${week}`;
  const groups={};(state.matchups||[]).forEach(m=>(groups[m.matchup_id]??=[]).push(m));
- const games=Object.values(groups).filter(g=>g.length===2).map(g=>{const a=teamByRoster(g[0].roster_id),b=teamByRoster(g[1].roster_id);const sa=Number(g[0].points||0),sb=Number(g[1].points||0);return a&&b?{a,b,sa,sb,d:Math.abs(sa-sb)}:null}).filter(Boolean);
+ const games=Object.values(groups).filter(g=>g.length===2).map(g=>{const a=teamByRoster(g[0].roster_id),b=teamByRoster(g[1].roster_id);if(!a||!b)return null;const sa=Number(g[0].points||0),sb=Number(g[1].points||0),pa=sleeperTeamProjection(g[0]),pb=sleeperTeamProjection(g[1]);return {id:g[0].matchup_id,a,b,ma:g[0],mb:g[1],sa,sb,pa,pb,d:Math.abs(sa-sb)}}).filter(Boolean);
  const played=games.filter(g=>g.sa>0||g.sb>0),closest=played.slice().sort((x,y)=>x.d-y.d)[0],widest=played.slice().sort((x,y)=>y.d-x.d)[0];
- document.getElementById('v119Closest').textContent=closest?`${closest.a.name} ${closest.sa.toFixed(1)} – ${closest.b.name} ${closest.sb.toFixed(1)} • ${closest.d.toFixed(1)} pts`:'Week 1 matchups are set. Scores appear here live.';
- document.getElementById('v119Lead').textContent=widest?`${widest.sa>=widest.sb?widest.a.name:widest.b.name} +${widest.d.toFixed(1)}`:'The season starts now.';
+ document.getElementById('v119Closest').textContent=closest?`${closest.a.name} ${closest.sa.toFixed(1)} – ${closest.b.name} ${closest.sb.toFixed(1)} • ${closest.d.toFixed(1)} pts`:`Week ${week} matchups are set. Scores appear here live.`;
+ document.getElementById('v119Lead').textContent=widest?`${widest.sa>=widest.sb?widest.a.name:widest.b.name} +${widest.d.toFixed(1)}`:'The week is waiting to kick off.';
  const bg=games.find(g=>norm(g.a.name)===norm('DakstreetBoys')||norm(g.b.name)===norm('DakstreetBoys')),belt=document.getElementById('v119Belt'),lines=[];
- if(bg&&(bg.sa>0||bg.sb>0)){const ha=norm(bg.a.name)===norm('DakstreetBoys'),hs=ha?bg.sa:bg.sb,os=ha?bg.sb:bg.sa,opp=ha?bg.b:bg.a;belt.textContent=hs<os?`⚠️ ${opp.name} is currently taking the belt by ${(os-hs).toFixed(1)}`:`DakstreetBoys is defending the belt${hs>os?` by ${(hs-os).toFixed(1)}`:''}.`;lines.push(hs<os?`🥊 BELT WATCH: ${opp.name} is threatening the champ`:`🥊 BELT WATCH: DakstreetBoys is defending`)}else belt.textContent='DakstreetBoys enters 2026 with the belt.';
- if(closest)lines.push(`🔥 CLOSE ONE: ${closest.a.name} vs ${closest.b.name} • ${closest.d.toFixed(1)} pts apart`);
- if(widest)lines.push(`💥 BIGGEST LEAD: ${widest.sa>=widest.sb?widest.a.name:widest.b.name} +${widest.d.toFixed(1)}`);
- if(!lines.length)lines.push(`🏈 WEEK ${week}: The road to the championship starts now`,'Earn it • Keep it • Defend it');
- document.getElementById('v119Ticker').innerHTML=lines.map(x=>`<span class="v119-ticker-item">${esc(x)}</span>`).join('');
+ if(bg&&(bg.sa>0||bg.sb>0)){const ha=norm(bg.a.name)===norm('DakstreetBoys'),hs=ha?bg.sa:bg.sb,os=ha?bg.sb:bg.sa,opp=ha?bg.b:bg.a;belt.textContent=hs<os?`⚠️ ${opp.name} is currently taking the belt by ${(os-hs).toFixed(1)}`:`DakstreetBoys is defending the belt${hs>os?` by ${(hs-os).toFixed(1)}`:''}.`;lines.push(hs<os?`🥊 BELT WATCH: ${opp.name} is threatening the champ by ${(os-hs).toFixed(1)}`:`🥊 BELT WATCH: DakstreetBoys is defending${hs>os?` by ${(hs-os).toFixed(1)}`:''}`)}else belt.textContent='DakstreetBoys enters 2026 with the belt.';
+ if(closest&&closest.d<=12)lines.push(`${closest.d<=5?'🚨 NAIL-BITER':'🔥 CLOSE ONE'}: ${closest.a.name} vs ${closest.b.name} • ${closest.d.toFixed(1)} pts apart`);
+ if(widest&&widest.d>=25)lines.push(`💥 BLOWOUT ALERT: ${widest.sa>=widest.sb?widest.a.name:widest.b.name} leads by ${widest.d.toFixed(1)}`);else if(widest)lines.push(`📈 BIGGEST LEAD: ${widest.sa>=widest.sb?widest.a.name:widest.b.name} +${widest.d.toFixed(1)}`);
+ // Upset watch: a team that entered the week as the Sleeper projection underdog is leading live.
+ played.forEach(g=>{if(!Number.isFinite(g.pa)||!Number.isFinite(g.pb)||g.pa===g.pb||g.sa===g.sb)return;const under=g.pa<g.pb?g.a:g.b,underScore=g.pa<g.pb?g.sa:g.sb,favScore=g.pa<g.pb?g.sb:g.sa,fav=g.pa<g.pb?g.b:g.a;if(underScore>favScore)lines.push(`⚡ UPSET WATCH: ${under.name} leads projected favorite ${fav.name} by ${(underScore-favScore).toFixed(1)}`)});
+ // Live weekly high/low score races.
+ if(played.length){const teams=played.flatMap(g=>[{t:g.a,s:g.sa},{t:g.b,s:g.sb}]).sort((x,y)=>y.s-x.s),hi=teams[0],lo=teams[teams.length-1];if(hi&&hi.s>0)lines.push(`👑 HIGH SCORE RACE: ${hi.t.name} leads the league with ${hi.s.toFixed(1)}`);if(lo&&lo.s>0)lines.push(`🪦 LOW SCORE DANGER: ${lo.t.name} sits at ${lo.s.toFixed(1)}`)}
+ // Top individual starter performance from Sleeper's live players_points feed.
+ let top=null;for(const g of played)for(const [m,t] of [[g.ma,g.a],[g.mb,g.b]]){const pp=m.players_points||m.playersPoints||{};for(const id of (m.starters||[])){const pts=Number(pp?.[id]);if(!Number.isFinite(pts)||pts<=0)continue;if(!top||pts>top.pts){const inf=playerInfoV18(id);top={name:inf.name,pts,team:t.name}}}}if(top)lines.push(`🏅 TOP PERFORMER: ${top.name} • ${top.pts.toFixed(1)} for ${top.team}`);
+ // Detect lead changes/comebacks between live refreshes on this device.
+ const snapKey=`lsd-live-snapshot-${season}-${week}`,now={};games.forEach(g=>now[g.id]={sa:g.sa,sb:g.sb,leader:g.sa===g.sb?'tie':g.sa>g.sb?'a':'b'});try{const prev=JSON.parse(localStorage.getItem(snapKey)||'{}');games.forEach(g=>{const old=prev[g.id];if(!old)return;const cur=now[g.id];if(old.leader&&old.leader!=='tie'&&cur.leader!=='tie'&&old.leader!==cur.leader){const leader=cur.leader==='a'?g.a:g.b,trail=cur.leader==='a'?g.b:g.a;lines.unshift(`🔄 LEAD CHANGE: ${leader.name} has jumped ahead of ${trail.name}`);const oldDef=cur.leader==='a'?Number(old.sb||0)-Number(old.sa||0):Number(old.sa||0)-Number(old.sb||0);if(oldDef>=8)lines.unshift(`🧟 COMEBACK WATCH: ${leader.name} erased a ${oldDef.toFixed(1)}-point deficit`)}})}catch{}try{localStorage.setItem(snapKey,JSON.stringify(now))}catch{}
+ if(!lines.length)lines.push(`🏈 WEEK ${week}: LSD LIVE is standing by for game action`,'Earn it • Keep it • Defend it');
+ document.getElementById('v119Ticker').innerHTML=lines.slice(0,12).map(x=>`<span class="v119-ticker-item">${esc(x)}</span>`).join('');
 }
 const _v119RenderAll=renderAll;renderAll=function(){_v119RenderAll();setTimeout(v119Gameday,0)};
 
@@ -7378,10 +7386,6 @@ function v130Card(P,E,T,label){
   ['FantasyPros ECR',ecr,''],
  ];
  if(Number.isFinite(Number(T?.cbsProjection)))boxes.push(['CBS Projection',v130Fmt(T.cbsProjection),'primary']);
- if(Number.isFinite(Number(T?.dsProjection)))boxes.push(['DraftSharks Projection',v130Fmt(T.dsProjection),'primary']);
- if(T?.dsRank)boxes.push(['DraftSharks Rank',P.pos+T.dsRank,'']);
- if(T?.espnRank)boxes.push(['ESPN Rank',P.pos+T.espnRank,'']);
- if(T?.ballersRank)boxes.push(['Footballers Consensus',P.pos+T.ballersRank,'']);
  return `<div class="v129-card">
  ${unavailable?`<div class="v129-status">Unavailable • ${esc(P.p.injuryStatus)}</div>`:''}
  <div class="v129-card-head"><div><span class="v129-label">${label}</span><div class="v129-name">${esc(P.p.name)}</div><div class="v129-meta">${esc(P.pos)} • ${esc(P.p.nflTeam||'FA')} • ${esc(P.status)}</div></div></div>
@@ -7396,7 +7400,6 @@ function v130Score(P,E,T){
  add(P.projection,.30);
  add(E?.expertProjection,.25);
  add(T?.cbsProjection,.20);
- add(T?.dsProjection,.25);
  const w=vals.reduce((a,x)=>a+x[1],0)||1;
  return vals.reduce((a,x)=>a+x[0]*x[1],0)/w;
 }
@@ -7405,14 +7408,13 @@ function v130Reason(A,B,Ae,Be,At,Bt,W){
  function vote(label,x,y,lower=false){x=Number(x);y=Number(y);if(Number.isFinite(x)&&Number.isFinite(y)&&x!==y)votes.push([label,lower?(x<y?W:L):(x>y?W:L)]);}
  vote('Sleeper',W.projection,L.projection);vote('FantasyPros Projection',We?.expertProjection,Le?.expertProjection);
  if(W.pos===L.pos)vote('FantasyPros ECR',We?.rank,Le?.rank,true);
- vote('CBS',Wt?.cbsProjection,Lt?.cbsProjection);vote('DraftSharks Projection',Wt?.dsProjection,Lt?.dsProjection);
- if(W.pos===L.pos){vote('DraftSharks Rank',Wt?.dsRank,Lt?.dsRank,true);vote('ESPN',Wt?.espnRank,Lt?.espnRank,true);vote('Fantasy Footballers',Wt?.ballersRank,Lt?.ballersRank,true)}
+ vote('CBS',Wt?.cbsProjection,Lt?.cbsProjection);
  const forW=votes.filter(v=>v[1]===W).length,forL=votes.filter(v=>v[1]===L).length,parts=[];
  if(votes.length)parts.push(`${forW} of ${votes.length} available Lone Star indicators favor ${W.p.name}${forL?`, with ${forL} favoring ${L.p.name}`:''}.`);
- const proj=[['Sleeper',W.projection,L.projection],['FantasyPros',We?.expertProjection,Le?.expertProjection],['CBS',Wt?.cbsProjection,Lt?.cbsProjection],['DraftSharks',Wt?.dsProjection,Lt?.dsProjection]]
+ const proj=[['Sleeper',W.projection,L.projection],['FantasyPros',We?.expertProjection,Le?.expertProjection],['CBS',Wt?.cbsProjection,Lt?.cbsProjection]]
   .filter(x=>Number.isFinite(Number(x[1]))&&Number.isFinite(Number(x[2]))&&Number(x[1])!==Number(x[2]));
  if(proj.length){const x=proj.sort((a,b)=>Math.abs(Number(b[1])-Number(b[2]))-Math.abs(Number(a[1])-Number(a[2])))[0],d=Number(x[1])-Number(x[2]);parts.push(`${x[0]} ${d>0?'favors '+W.p.name:'favors '+L.p.name} by ${Math.abs(d).toFixed(1)} points.`)}
- const ranks=W.pos===L.pos?[['FantasyPros',We?.rank,Le?.rank],['DraftSharks',Wt?.dsRank,Lt?.dsRank],['ESPN',Wt?.espnRank,Lt?.espnRank],['Fantasy Footballers',Wt?.ballersRank,Lt?.ballersRank]].filter(x=>Number(x[1])&&Number(x[2])&&Number(x[1])!==Number(x[2])):[];
+ const ranks=W.pos===L.pos?[['FantasyPros',We?.rank,Le?.rank]].filter(x=>Number(x[1])&&Number(x[2])&&Number(x[1])!==Number(x[2])):[];
  if(ranks.length){const x=ranks[0];parts.push(`${x[0]} ranks ${Number(x[1])<Number(x[2])?W.p.name:L.p.name} higher at ${W.pos}${Math.min(x[1],x[2])} vs ${W.pos}${Math.max(x[1],x[2])}.`)}
  return parts.slice(0,3).join(' ')||`${W.p.name} has the stronger combined weekly profile across the available sources.`;
 }
@@ -7447,7 +7449,7 @@ async function v124Render(el){
    const stamp=third?.updatedAt?new Date(third.updatedAt).toLocaleString([], {weekday:'short',hour:'numeric',minute:'2-digit'}):'waiting for first weekly snapshot';
    compare.innerHTML=`<div class="v129-cards">${v130Card(A,Ae,At,'Player A')}${v130Card(B,Be,Bt,'Player B')}</div>
    <div class="v129-verdict"><small>Lone Star Verdict</small><strong>${esc(base.title)}</strong><div class="v129-why">${esc(v130Reason(A,B,Ae,Be,At,Bt,base.W))}</div>
-   <div><span class="v129-signal">Sleeper</span><span class="v129-signal">FantasyPros Projection</span><span class="v129-signal">FantasyPros ECR</span>${(At?.cbsProjection||Bt?.cbsProjection)?'<span class="v129-signal">CBS</span>':''}${(At?.dsProjection||Bt?.dsProjection)?'<span class="v129-signal">DraftSharks</span>':''}${(At?.espnRank||Bt?.espnRank)?'<span class="v129-signal">ESPN</span>':''}${(At?.ballersRank||Bt?.ballersRank)?'<span class="v129-signal">Fantasy Footballers</span>':''}</div>
+   <div><span class="v129-signal">Sleeper</span><span class="v129-signal">FantasyPros Projection</span><span class="v129-signal">FantasyPros ECR</span>${(At?.cbsProjection||Bt?.cbsProjection)?'<span class="v129-signal">CBS</span>':''}</div>
    <div class="v129-jerry-note">Weekly consensus snapshot: ${esc(stamp)}${third?.stale?' • using last valid snapshot':''}</div></div>`;
  }
 }
