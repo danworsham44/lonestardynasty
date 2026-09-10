@@ -7295,6 +7295,7 @@ const v129css=document.createElement('style');v129css.textContent=`
 .v129-cards{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:18px}
 .v129-card{border:1px solid rgba(255,255,255,.13);background:#0b1724;padding:16px;min-width:0}
 .v129-card-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:13px}
+.v139-opponent{margin-left:auto;text-align:right;border-left:1px solid rgba(255,255,255,.10);padding-left:12px;min-width:76px}.v139-opponent small{display:block;color:var(--muted);font-size:7px;font-weight:1000;letter-spacing:.8px;text-transform:uppercase}.v139-opponent strong{display:block;margin-top:5px;color:#f0bd55;font-size:16px;font-weight:1000}.v139-player-link{cursor:pointer;text-decoration:underline;text-decoration-color:rgba(240,189,85,.42);text-underline-offset:3px}.v139-player-link:active{color:#f0bd55}.v139-colhead{color:var(--muted);font-size:7px;font-weight:1000;letter-spacing:.8px;text-transform:uppercase;padding:0 2px 2px}.v139-colhead:nth-child(2){text-align:left}
 .v129-label{display:inline-block;border:1px solid rgba(240,189,85,.48);color:#f0bd55;padding:5px 8px;font-size:8px;font-weight:1000;letter-spacing:1px;text-transform:uppercase}
 .v129-name{margin:9px 0 4px;color:var(--cream);font-size:22px;font-weight:1000;line-height:1.05}
 .v129-meta{color:var(--muted);font-size:9px;font-weight:900;letter-spacing:.45px;text-transform:uppercase}
@@ -7377,19 +7378,40 @@ function v131ThirdFor(data,P){
      || rows.find(x=>v62NormName(x.name)===n)||null;
 }
 function v130Fmt(n){return Number.isFinite(Number(n))?Number(n).toFixed(1):'—'}
-function v130Card(P,E,T,label){
- const ecr=E?(E.posRank||(`${P.pos}${E.rank}`)):'—',fp=Number(E?.expertProjection);
- const unavailable=['OUT','IR','PUP','SUSP','SUSPENDED','NFI'].includes(String(P.p?.injuryStatus||'').toUpperCase());
+function v139UnavailableStatus(P){
+ const s=String(P?.p?.injuryStatus||'').toUpperCase().trim();
+ return ['OUT','IR','PUP','SUSP','SUSPENDED','NFI','INACTIVE','RESERVE'].includes(s)||/^(OUT|IR|PUP|SUSP|NFI)\b/.test(s);
+}
+let v139SleeperPlayersPromise=null;
+async function v139RefreshSelectedStatus(ids){
+ try{
+  if(!v139SleeperPlayersPromise)v139SleeperPlayersPromise=fetch('https://api.sleeper.app/v1/players/nfl',{cache:'no-store'}).then(r=>r.ok?r.json():null).catch(()=>null);
+  const fresh=await v139SleeperPlayersPromise;if(!fresh)return;
+  ids.forEach(id=>{const x=fresh?.[String(id)];if(x&&state.players?.set)state.players.set(String(id),x)});
+ }catch(e){}
+}
+function v139SleeperProjectedRank(P,pool){
+ const vals=[];
+ for(const x of pool){if(String(x.pos).toUpperCase()!==String(P.pos).toUpperCase())continue;try{const n=Number(currentProjectionV27(String(x.id)));if(Number.isFinite(n)&&n>=0)vals.push([String(x.id),n])}catch(e){}}
+ vals.sort((a,b)=>b[1]-a[1]);const i=vals.findIndex(x=>x[0]===String(P.id));return i>=0?`${P.pos}${i+1}`:'—';
+}
+function v139Opponent(E,T){
+ let o=String(E?.opponent||T?.cbsOpponent||'').trim();if(!o)return '—';
+ o=o.replace(/^vs\.?\s*/i,'').toUpperCase();return o;
+}
+function v130Card(P,E,T,label,pool){
+ const ecr=E?(E.posRank||(`${P.pos}${E.rank}`)):'—',fp=Number(E?.expertProjection),opp=v139Opponent(E,T),sleeperRank=v139SleeperProjectedRank(P,pool||[]);
+ const unavailable=v139UnavailableStatus(P);
+ const cbsRank=Number(T?.cbsRank)>0?`${P.pos}${Number(T.cbsRank)}`:'—';
  const boxes=[
-  ['Sleeper Projection',v130Fmt(P.projection),'primary'],
-  ['FantasyPros Projection',v130Fmt(fp),'primary'],
-  ['FantasyPros ECR',ecr,''],
+  ['Sleeper Projection',v130Fmt(P.projection),'primary'],['Sleeper Projected Rank',sleeperRank,''],
+  ['FantasyPros Projection',v130Fmt(fp),'primary'],['FantasyPros ECR',ecr,''],
+  ['CBS Projection',Number.isFinite(Number(T?.cbsProjection))?v130Fmt(T.cbsProjection):'—','primary'],['CBS Consensus Rank',cbsRank,'']
  ];
- if(Number.isFinite(Number(T?.cbsProjection)))boxes.push(['CBS Projection',v130Fmt(T.cbsProjection),'primary']);
  return `<div class="v129-card">
- ${unavailable?`<div class="v129-status">Unavailable • ${esc(P.p.injuryStatus)}</div>`:''}
- <div class="v129-card-head"><div><span class="v129-label">${label}</span><div class="v129-name">${esc(P.p.name)}</div><div class="v129-meta">${esc(P.pos)} • ${esc(P.p.nflTeam||'FA')} • ${esc(P.status)}</div></div></div>
- <div class="v129-metrics">${boxes.map(x=>`<div class="v129-metric ${x[2]}"><small>${esc(x[0])}</small><strong>${esc(String(x[1]))}</strong></div>`).join('')}</div></div>`;
+ ${unavailable?`<div class="v129-status">Unavailable • ${esc(P.p.injuryStatus||'OUT')}</div>`:''}
+ <div class="v129-card-head"><div><span class="v129-label">${label}</span><div class="v129-name v139-player-link" data-player-profile-id="${esc(P.id)}" role="link" tabindex="0">${esc(P.p.name)}</div><div class="v129-meta">${esc(P.pos)} • ${esc(P.p.nflTeam||'FA')} • ${esc(P.status)}</div></div><div class="v139-opponent"><small>Opponent</small><strong>${esc(opp)}</strong></div></div>
+ <div class="v129-metrics"><div class="v139-colhead">Projections</div><div class="v139-colhead">Rankings</div>${boxes.map(x=>`<div class="v129-metric ${x[2]}"><small>${esc(x[0])}</small><strong>${esc(String(x[1]))}</strong></div>`).join('')}</div></div>`;
 }
 function v130Score(P,E,T){
  const vals=[];
@@ -7405,22 +7427,22 @@ function v130Score(P,E,T){
 }
 function v130Reason(A,B,Ae,Be,At,Bt,W){
  const L=W===A?B:A,We=W===A?Ae:Be,Le=W===A?Be:Ae,Wt=W===A?At:Bt,Lt=W===A?Bt:At,votes=[];
+ if(v139UnavailableStatus(L)&&!v139UnavailableStatus(W))return `${L.p.name} is ${L.p.injuryStatus||'OUT'} and has been removed from the Start/Sit calculation. Start ${W.p.name}.`;
  function vote(label,x,y,lower=false){x=Number(x);y=Number(y);if(Number.isFinite(x)&&Number.isFinite(y)&&x!==y)votes.push([label,lower?(x<y?W:L):(x>y?W:L)]);}
  vote('Sleeper',W.projection,L.projection);vote('FantasyPros Projection',We?.expertProjection,Le?.expertProjection);
- if(W.pos===L.pos)vote('FantasyPros ECR',We?.rank,Le?.rank,true);
+ if(W.pos===L.pos){vote('FantasyPros ECR',We?.rank,Le?.rank,true);vote('CBS Consensus Rank',Wt?.cbsRank,Lt?.cbsRank,true);}
  vote('CBS',Wt?.cbsProjection,Lt?.cbsProjection);
  const forW=votes.filter(v=>v[1]===W).length,forL=votes.filter(v=>v[1]===L).length,parts=[];
  if(votes.length)parts.push(`${forW} of ${votes.length} available Lone Star indicators favor ${W.p.name}${forL?`, with ${forL} favoring ${L.p.name}`:''}.`);
  const proj=[['Sleeper',W.projection,L.projection],['FantasyPros',We?.expertProjection,Le?.expertProjection],['CBS',Wt?.cbsProjection,Lt?.cbsProjection]]
   .filter(x=>Number.isFinite(Number(x[1]))&&Number.isFinite(Number(x[2]))&&Number(x[1])!==Number(x[2]));
  if(proj.length){const x=proj.sort((a,b)=>Math.abs(Number(b[1])-Number(b[2]))-Math.abs(Number(a[1])-Number(a[2])))[0],d=Number(x[1])-Number(x[2]);parts.push(`${x[0]} ${d>0?'favors '+W.p.name:'favors '+L.p.name} by ${Math.abs(d).toFixed(1)} points.`)}
- const ranks=W.pos===L.pos?[['FantasyPros',We?.rank,Le?.rank]].filter(x=>Number(x[1])&&Number(x[2])&&Number(x[1])!==Number(x[2])):[];
+ const ranks=W.pos===L.pos?[['FantasyPros',We?.rank,Le?.rank],['CBS Consensus',Wt?.cbsRank,Lt?.cbsRank]].filter(x=>Number(x[1])&&Number(x[2])&&Number(x[1])!==Number(x[2])):[];
  if(ranks.length){const x=ranks[0];parts.push(`${x[0]} ranks ${Number(x[1])<Number(x[2])?W.p.name:L.p.name} higher at ${W.pos}${Math.min(x[1],x[2])} vs ${W.pos}${Math.max(x[1],x[2])}.`)}
  return parts.slice(0,3).join(' ')||`${W.p.name} has the stronger combined weekly profile across the available sources.`;
 }
 function v124BaseVerdict(A,B,Ae,Be,At=null,Bt=null){
- const unavailable=x=>['OUT','IR','PUP','SUSP','SUSPENDED','NFI'].includes(String(x||'').toUpperCase());
- const Astatus=String(A.p?.injuryStatus||'').toUpperCase(),Bstatus=String(B.p?.injuryStatus||'').toUpperCase(),Aout=unavailable(Astatus),Bout=unavailable(Bstatus);
+ const Astatus=String(A.p?.injuryStatus||'').toUpperCase(),Bstatus=String(B.p?.injuryStatus||'').toUpperCase(),Aout=v139UnavailableStatus(A),Bout=v139UnavailableStatus(B);
  const As=Aout?-999:v130Score(A,Ae,At),Bs=Bout?-999:v130Score(B,Be,Bt),W=As>=Bs?A:B,diff=Math.abs(As-Bs);
  const title=Aout&&Bout?'Neither Player Is Available':((Aout||Bout)?'Start '+W.p.name:(diff<0.75?'Too Close To Call':'Start '+W.p.name));
  return {title,Aout,Bout,Astatus,Bstatus,W,diff};
@@ -7443,13 +7465,14 @@ async function v124Render(el){
  wire(el.querySelector('[data-side="A"]'),'A');wire(el.querySelector('[data-side="B"]'),'B');
  async function draw(){
    if(!pickA||!pickB)return;
+   await v139RefreshSelectedStatus([pickA.id,pickB.id]);
    const A=v124Model(pickA.id),B=v124Model(pickB.id),Ae=v62ExternalFor(A,feed),Be=v62ExternalFor(B,feed),week=Number(state.displayWeek||state.week||1);
    compare.innerHTML='<div class="v124-loading">Building weekly comparison…</div>';
    const third=await v130LoadThirdSource(week),At=v131ThirdFor(third,A),Bt=v131ThirdFor(third,B),base=v124BaseVerdict(A,B,Ae,Be,At,Bt);
    const stamp=third?.updatedAt?new Date(third.updatedAt).toLocaleString([], {weekday:'short',hour:'numeric',minute:'2-digit'}):'waiting for first weekly snapshot';
-   compare.innerHTML=`<div class="v129-cards">${v130Card(A,Ae,At,'Player A')}${v130Card(B,Be,Bt,'Player B')}</div>
+   compare.innerHTML=`<div class="v129-cards">${v130Card(A,Ae,At,'Player A',pool)}${v130Card(B,Be,Bt,'Player B',pool)}</div>
    <div class="v129-verdict"><small>Lone Star Verdict</small><strong>${esc(base.title)}</strong><div class="v129-why">${esc(v130Reason(A,B,Ae,Be,At,Bt,base.W))}</div>
-   <div><span class="v129-signal">Sleeper</span><span class="v129-signal">FantasyPros Projection</span><span class="v129-signal">FantasyPros ECR</span>${(At?.cbsProjection||Bt?.cbsProjection)?'<span class="v129-signal">CBS</span>':''}</div>
+   <div><span class="v129-signal">Sleeper</span><span class="v129-signal">FantasyPros Projection</span><span class="v129-signal">FantasyPros ECR</span>${(At?.cbsProjection||Bt?.cbsProjection)?'<span class="v129-signal">CBS Projection</span>':''}${(At?.cbsRank||Bt?.cbsRank)?'<span class="v129-signal">CBS Consensus</span>':''}</div>
    <div class="v129-jerry-note">Weekly consensus snapshot: ${esc(stamp)}${third?.stale?' • using last valid snapshot':''}</div></div>`;
  }
 }
