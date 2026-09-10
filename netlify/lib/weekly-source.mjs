@@ -70,8 +70,10 @@ function resolveCBSAbbrev(label,pos,helpers){
  return hits.length===1?hits[0].name:text;
 }
 async function cbsRankings(pos,week){
- const url=`https://www.cbssports.com/fantasy/football/rankings/ppr/${pos}/weekly/`;
- const r=await get(url);if(!r.ok)throw Object.assign(new Error(`CBS rankings ${pos} HTTP ${r.status}`),{diag:r});
+ const urls=[`https://new.cbssports.com/fantasy/football/rankings/ppr/${pos}/weekly/`,`https://www.cbssports.com/fantasy/football/rankings/ppr/${pos}/weekly/`];
+ let r=null;for(const u of urls){try{const x=await get(u);if(x.ok){r=x;break}if(!r)r=x}catch(e){}}
+ if(!r?.ok)throw Object.assign(new Error(`CBS rankings ${pos} HTTP ${r?.status||0}`),{diag:r||{url:urls[0]}});
+ const url=r.url;
  const helpers=await fantasyProsPlayers(),out=[];
  for(const tr of r.body.matchAll(/<tr\b[^>]*>([\s\S]*?)<\/tr>/gi)){
   const c=cells(tr[1]);if(c.length<2)continue;
