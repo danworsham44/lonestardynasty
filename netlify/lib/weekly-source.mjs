@@ -60,12 +60,38 @@ async function cbs(pos,week){
  if(out.length<8)throw Object.assign(new Error(`CBS ${pos} parsed ${out.length}`),{diag:{...r,body:undefined,parsed:out.length,sample:out.slice(0,3)}});
  return {rows:out,diag:{source:'CBS',position:pos,url,status:r.status,bytes:r.bytes,parsed:out.length,ms:r.ms}};
 }
+
+function lastNameKey(name){const a=clean(name).toLowerCase().replace(/[^a-z0-9' -]/g,' ').split(/\s+/).filter(Boolean);return (a[a.length-1]||'').replace(/[^a-z0-9]/g,'')}
+function resolveCBSAbbrev(label,pos,helpers){
+ const text=clean(label).replace(new RegExp(`\b${pos}\b.*$`,'i'),'').trim();
+ const m=text.match(/^([A-Za-z])\.?\s+(.+)$/);if(!m)return text;
+ const initial=m[1].toLowerCase(),last=lastNameKey(m[2]);
+ const hits=helpers.filter(x=>x.position===pos&&x.name&&x.name[0]?.toLowerCase()===initial&&lastNameKey(x.name)===last);
+ return hits.length===1?hits[0].name:text;
+}
+async function cbsRankings(pos,week){
+ const url=`https://www.cbssports.com/fantasy/football/rankings/ppr/${pos}/weekly/`;
+ const r=await get(url);if(!r.ok)throw Object.assign(new Error(`CBS rankings ${pos} HTTP ${r.status}`),{diag:r});
+ const helpers=await fantasyProsPlayers(),out=[];
+ for(const tr of r.body.matchAll(/<tr\b[^>]*>([\s\S]*?)<\/tr>/gi)){
+  const c=cells(tr[1]);if(c.length<2)continue;
+  let rank=NaN,playerCell='',opp='';
+  for(let i=0;i<c.length;i++){if(!Number.isFinite(rank)&&/^\d+$/.test(c[i])){rank=Number(c[i]);playerCell=c[i+1]||'';opp=c[i+2]||'';break}}
+  if(!Number.isFinite(rank)||rank<1||rank>250||!playerCell)continue;
+  const name=resolveCBSAbbrev(playerCell,pos,helpers);if(!name)continue;
+  out.push({name,position:pos,cbsRank:rank,cbsOpponent:clean(opp)});
+ }
+ if(out.length<8)throw Object.assign(new Error(`CBS rankings ${pos} parsed ${out.length}`),{diag:{...r,body:undefined,parsed:out.length,sample:out.slice(0,3)}});
+ return {rows:out,diag:{source:'CBS Rankings',position:pos,url,status:r.status,bytes:r.bytes,parsed:out.length,ms:r.ms}};
+}
 export async function fetchWeeklyConsensus(week,{diagnostics=false}={}){
  const map=new Map(),status=[],errors=[];
  const merge=x=>{const k=key(x.name);if(k)map.set(k,{...(map.get(k)||{}),...x})};
  for(const pos of POS){
    try{const r=await cbs(pos,week);r.rows.forEach(merge);status.push({...r.diag,ok:true})}
    catch(e){const d=e?.diag||{};status.push({source:'CBS',position:pos,ok:false,url:d.url||'',status:d.status||0,bytes:d.bytes||0,parsed:d.parsed||0,ms:d.ms||0,error:String(e?.message||e)});errors.push(`CBS ${pos}: ${e?.message||e}`)}
+   try{const r=await cbsRankings(pos,week);r.rows.forEach(merge);status.push({...r.diag,ok:true})}
+   catch(e){const d=e?.diag||{};status.push({source:'CBS Rankings',position:pos,ok:false,url:d.url||'',status:d.status||0,bytes:d.bytes||0,parsed:d.parsed||0,ms:d.ms||0,error:String(e?.message||e)});errors.push(`CBS Rankings ${pos}: ${e?.message||e}`)}
  }
  const players=[...map.values()],loadedSources=[...new Set(status.filter(x=>x.ok).map(x=>x.source))];
  if(players.length<20){const e=new Error(`Consensus validation failed: ${players.length} players`);e.diagnostics={week,players:players.length,loadedSources,status,errors};throw e}
