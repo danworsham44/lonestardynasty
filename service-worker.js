@@ -1,4 +1,4 @@
-const CACHE_NAME = 'lone-star-dynasty-v138-2-lsd-live-clean';
+const CACHE_NAME = 'lone-star-dynasty-v141-live-startsit-cbs-nav';
 const APP_SHELL = [
   './',
   './index.html',
@@ -40,6 +40,13 @@ self.addEventListener('fetch', event => {
         })
         .catch(async () => (await caches.match('./index.html')) || caches.match('./offline.html'))
     );
+    return;
+  }
+
+  // Live Netlify function responses must never be served cache-first. That
+  // previously showed the older weekly ticker/rankings until a later visit.
+  if (url.pathname.startsWith('/.netlify/functions/')) {
+    event.respondWith(fetch(req, { cache: 'no-store' }));
     return;
   }
 

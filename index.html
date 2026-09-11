@@ -877,7 +877,7 @@ function clearStaleSleeperSnapshots(){try{for(let i=localStorage.length-1;i>=0;i
 async function bootstrap(){clearStaleSleeperSnapshots();renderFallback();try{
  const base=`https://api.sleeper.app/v1/league/${LEAGUE_ID}`;
  const [league,users,rosters,nfl,tradedPicks]=await Promise.all([getJSON(base),getJSON(base+'/users'),getJSON(base+'/rosters'),getJSON('https://api.sleeper.app/v1/state/nfl'),getJSON(base+'/traded_picks').catch(()=>[])]);
- state.league=league;state.users=users;state.rosters=rosters;state.nfl=nfl;state.tradedPicks=tradedPicks||[];state.week=Number(nfl?.week||league?.settings?.leg||1)||1;state.displayWeek=1;
+ state.league=league;state.users=users;state.rosters=rosters;state.nfl=nfl;state.tradedPicks=tradedPicks||[];state.week=Number(nfl?.week||league?.settings?.leg||1)||1;state.displayWeek=state.week;
  mapTeams();renderMenus();renderStandings();
  const [matchups,tx,fcD,fcR,projections]=await Promise.allSettled([getJSON(base+`/matchups/${state.displayWeek}`),getRecentTransactions(base,state.week),getFCalc(true),getFCalc(false),getSleeperWeeklyProjections(state.displayWeek)]);
  if(matchups.status==='fulfilled')state.matchups=matchups.value;
@@ -5349,6 +5349,8 @@ function v89ConsolidatedTotal(assets){
 function v89Render(el){
  if(!state.teams.length){el.innerHTML='<div class="empty">League data is still loading.</div>';return}
  let A=state.teams[0]?.name||'',B=state.teams[1]?.name||A,assetsA=[],assetsB=[];
+ const pendingTrade=window.v140PendingTradePlayer;window.v140PendingTradePlayer=null;
+ if(pendingTrade){const own=ownerV109(pendingTrade);if(own)A=own.name;const asset=v89PlayerAsset(pendingTrade);if(asset&&asset.value>0)assetsA=[asset];}
  el.innerHTML=`<div class="v89tc">
   <div class="v89hero"><h2>Lone Star Trade Calculator</h2><p>Build a trade from actual Lone Star rosters and owned future draft capital. Player market values use the FantasyCalc dynasty dataset already powering the site; the Lone Star verdict adds a roster-spot/consolidation adjustment.</p><div class="v89source">FantasyCalc market values • Sleeper rosters & pick ownership</div></div>
   <div class="v89teams"><div class="v89side" id="v89A"></div><div class="v89side" id="v89B"></div></div>
@@ -7268,10 +7270,39 @@ function v119Gameday(){
  let top=null;for(const g of played)for(const [m,t] of [[g.ma,g.a],[g.mb,g.b]]){const pp=m.players_points||m.playersPoints||{};for(const id of (m.starters||[])){const pts=Number(pp?.[id]);if(!Number.isFinite(pts)||pts<=0)continue;if(!top||pts>top.pts){const inf=playerInfoV18(id);top={name:inf.name,pts,team:t.name}}}}if(top)lines.push(`🏅 TOP PERFORMER: ${top.name} • ${top.pts.toFixed(1)} for ${top.team}`);
  // Detect lead changes/comebacks between live refreshes on this device.
  const snapKey=`lsd-live-snapshot-${season}-${week}`,now={};games.forEach(g=>now[g.id]={sa:g.sa,sb:g.sb,leader:g.sa===g.sb?'tie':g.sa>g.sb?'a':'b'});try{const prev=JSON.parse(localStorage.getItem(snapKey)||'{}');games.forEach(g=>{const old=prev[g.id];if(!old)return;const cur=now[g.id];if(old.leader&&old.leader!=='tie'&&cur.leader!=='tie'&&old.leader!==cur.leader){const leader=cur.leader==='a'?g.a:g.b,trail=cur.leader==='a'?g.b:g.a;lines.unshift(`🔄 LEAD CHANGE: ${leader.name} has jumped ahead of ${trail.name}`);const oldDef=cur.leader==='a'?Number(old.sb||0)-Number(old.sa||0):Number(old.sa||0)-Number(old.sb||0);if(oldDef>=8)lines.unshift(`🧟 COMEBACK WATCH: ${leader.name} erased a ${oldDef.toFixed(1)}-point deficit`)}})}catch{}try{localStorage.setItem(snapKey,JSON.stringify(now))}catch{}
- if(!lines.length)lines.push(`🏈 WEEK ${week}: LSD LIVE is standing by for game action`,'Earn it • Keep it • Defend it');
+ // Always keep LSD LIVE moving, even between games.
+ const d=new Date(),mo=d.getMonth()+1,day=d.getDate();
+ let evergreen=`⭐ LSD LIVE • WEEK ${week} • Earn it • Keep it • Defend it`;
+ if(week===1&&mo===9)evergreen='🏈 HAPPY WEEK 1 • THE LONE STAR DYNASTY SEASON IS HERE';
+ if(mo===10&&day>=25)evergreen='🎃 HAPPY HALLOWEEN FROM LONE STAR DYNASTY • WHERE DREAMS BECOME NIGHTMARES';
+ if(mo===11&&day>=22&&day<=30)evergreen='🦃 HAPPY THANKSGIVING FROM LONE STAR DYNASTY';
+ if(mo===12&&day>=20&&day<=26)evergreen='🎄 MERRY CHRISTMAS FROM LONE STAR DYNASTY';
+ if((mo===12&&day>=31)||(mo===1&&day<=2))evergreen='🎆 HAPPY NEW YEAR FROM LONE STAR DYNASTY';
+ lines.push(evergreen);
+ if(lines.length===1)lines.push(`🏈 WEEK ${week}: LSD LIVE is standing by for the next league headline`);
  document.getElementById('v119Ticker').innerHTML=lines.slice(0,12).map(x=>`<span class="v119-ticker-item">${esc(x)}</span>`).join('');
 }
 const _v119RenderAll=renderAll;renderAll=function(){_v119RenderAll();setTimeout(v119Gameday,0)};
+
+/* Keep LSD LIVE current while the app remains open. Sleeper matchup scores are
+   refreshed independently of page navigation, and returning to the app forces
+   an immediate refresh instead of waiting for another screen render. */
+let v141LiveRefreshPromise=null;
+async function v141RefreshLsdLive(){
+ if(v141LiveRefreshPromise||!state.league)return v141LiveRefreshPromise;
+ const week=Math.max(1,Number(state.week||state.displayWeek||1));
+ v141LiveRefreshPromise=(async()=>{
+  try{
+   const fresh=await getJSON(`https://api.sleeper.app/v1/league/${LEAGUE_ID}/matchups/${week}`);
+   if(Array.isArray(fresh)){state.displayWeek=week;state.matchups=fresh;v119Gameday();markSleeperSynced();}
+  }catch(e){}
+  finally{v141LiveRefreshPromise=null;}
+ })();
+ return v141LiveRefreshPromise;
+}
+setInterval(v141RefreshLsdLive,60000);
+window.addEventListener('focus',v141RefreshLsdLive);
+document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')v141RefreshLsdLive()});
 
 /* V124 — clean universal Start/Sit.
    Replaces franchise/roster selectors with two independent searchable player fields.
@@ -7382,6 +7413,10 @@ function v139UnavailableStatus(P){
  const s=String(P?.p?.injuryStatus||'').toUpperCase().trim();
  return ['OUT','IR','PUP','SUSP','SUSPENDED','NFI','INACTIVE','RESERVE'].includes(s)||/^(OUT|IR|PUP|SUSP|NFI)\b/.test(s);
 }
+function v140DoubtfulStatus(P){
+ const s=String(P?.p?.injuryStatus||'').toUpperCase().trim();
+ return s==='DOUBTFUL'||/^DOUBTFUL\b/.test(s)||s==='D';
+}
 let v139SleeperPlayersPromise=null;
 async function v139RefreshSelectedStatus(ids){
  try{
@@ -7409,7 +7444,7 @@ function v130Card(P,E,T,label,pool){
   ['CBS Projection',Number.isFinite(Number(T?.cbsProjection))?v130Fmt(T.cbsProjection):'—','primary'],['CBS Consensus Rank',cbsRank,'']
  ];
  return `<div class="v129-card">
- ${unavailable?`<div class="v129-status">Unavailable • ${esc(P.p.injuryStatus||'OUT')}</div>`:''}
+ ${unavailable?`<div class="v129-status">Unavailable • ${esc(P.p.injuryStatus||'OUT')}</div>`:(v140DoubtfulStatus(P)?`<div class="v129-status">⚠ Doubtful • ${esc(P.p.injuryStatus||'DOUBTFUL')}</div>`:'')}
  <div class="v129-card-head"><div><span class="v129-label">${label}</span><div class="v129-name v139-player-link" data-player-profile-id="${esc(P.id)}" role="link" tabindex="0">${esc(P.p.name)}</div><div class="v129-meta">${esc(P.pos)} • ${esc(P.p.nflTeam||'FA')} • ${esc(P.status)}</div></div><div class="v139-opponent"><small>Opponent</small><strong>${esc(opp)}</strong></div></div>
  <div class="v129-metrics"><div class="v139-colhead">Projections</div><div class="v139-colhead">Rankings</div>${boxes.map(x=>`<div class="v129-metric ${x[2]}"><small>${esc(x[0])}</small><strong>${esc(String(x[1]))}</strong></div>`).join('')}</div></div>`;
 }
@@ -7428,6 +7463,8 @@ function v130Score(P,E,T){
 function v130Reason(A,B,Ae,Be,At,Bt,W){
  const L=W===A?B:A,We=W===A?Ae:Be,Le=W===A?Be:Ae,Wt=W===A?At:Bt,Lt=W===A?Bt:At,votes=[];
  if(v139UnavailableStatus(L)&&!v139UnavailableStatus(W))return `${L.p.name} is ${L.p.injuryStatus||'OUT'} and has been removed from the Start/Sit calculation. Start ${W.p.name}.`;
+ if(v140DoubtfulStatus(W)&&v140DoubtfulStatus(L))return `Both players are listed doubtful. Seek an alternative option if one is available rather than relying on either player.`;
+ if(v140DoubtfulStatus(L)&&!v140DoubtfulStatus(W))return `${L.p.name} is listed doubtful. Playing it safe, Start ${W.p.name}.`;
  function vote(label,x,y,lower=false){x=Number(x);y=Number(y);if(Number.isFinite(x)&&Number.isFinite(y)&&x!==y)votes.push([label,lower?(x<y?W:L):(x>y?W:L)]);}
  vote('Sleeper',W.projection,L.projection);vote('FantasyPros Projection',We?.expertProjection,Le?.expertProjection);
  if(W.pos===L.pos){vote('FantasyPros ECR',We?.rank,Le?.rank,true);vote('CBS Consensus Rank',Wt?.cbsRank,Lt?.cbsRank,true);}
@@ -7442,14 +7479,20 @@ function v130Reason(A,B,Ae,Be,At,Bt,W){
  return parts.slice(0,3).join(' ')||`${W.p.name} has the stronger combined weekly profile across the available sources.`;
 }
 function v124BaseVerdict(A,B,Ae,Be,At=null,Bt=null){
- const Astatus=String(A.p?.injuryStatus||'').toUpperCase(),Bstatus=String(B.p?.injuryStatus||'').toUpperCase(),Aout=v139UnavailableStatus(A),Bout=v139UnavailableStatus(B);
- const As=Aout?-999:v130Score(A,Ae,At),Bs=Bout?-999:v130Score(B,Be,Bt),W=As>=Bs?A:B,diff=Math.abs(As-Bs);
- const title=Aout&&Bout?'Neither Player Is Available':((Aout||Bout)?'Start '+W.p.name:(diff<0.75?'Too Close To Call':'Start '+W.p.name));
- return {title,Aout,Bout,Astatus,Bstatus,W,diff};
+ const Astatus=String(A.p?.injuryStatus||'').toUpperCase(),Bstatus=String(B.p?.injuryStatus||'').toUpperCase(),Aout=v139UnavailableStatus(A),Bout=v139UnavailableStatus(B),Adoubt=v140DoubtfulStatus(A),Bdoubt=v140DoubtfulStatus(B);
+ const As=Aout?-999:v130Score(A,Ae,At),Bs=Bout?-999:v130Score(B,Be,Bt);
+ let W=As>=Bs?A:B,diff=Math.abs(As-Bs),title='';
+ if(Aout&&Bout)title='Neither Player Is Available';
+ else if(Aout||Bout){W=Aout?B:A;title='Start '+W.p.name;}
+ else if(Adoubt&&Bdoubt){title='Seek Alternative Option';}
+ else if(Adoubt||Bdoubt){W=Adoubt?B:A;title='Play It Safe • Start '+W.p.name;}
+ else title=diff<0.75?'Too Close To Call':'Start '+W.p.name;
+ return {title,Aout,Bout,Adoubt,Bdoubt,Astatus,Bstatus,W,diff};
 }
 async function v124Render(el){
  if(!el)return;
  if(!state.players?.size){el.innerHTML='<div class="v124-shell"><div class="v124-loading">Loading the NFL player pool from Sleeper…</div></div>';setTimeout(()=>v124Render(el),650);return}
+ const pendingStart=String(window.v140PendingStartSitPlayer||sessionStorage.getItem('lsd-startsit-player')||'');
  const feed=await v62LoadECR();
  let pool=v124Pool(),pickA=null,pickB=null;
  el.innerHTML=`<div class="v124-shell"><div class="v124-head"><div><h2>Lone Star Start / Sit</h2><p>Search and compare fantasy-relevant players on active NFL rosters.</p></div><div class="v124-week">Week ${Number(state.displayWeek||state.week||1)}</div></div>
@@ -7463,6 +7506,8 @@ async function v124Render(el){
    input.addEventListener('input',show);input.addEventListener('focus',show);input.addEventListener('keydown',e=>{if(e.key==='Escape')results.hidden=true});document.addEventListener('click',e=>{if(!field.contains(e.target))results.hidden=true});
  }
  wire(el.querySelector('[data-side="A"]'),'A');wire(el.querySelector('[data-side="B"]'),'B');
+ // Player-profile handoff: prefill Player A when Start/Sit is opened from a profile.
+ if(pendingStart){const hit=pool.find(x=>String(x.id)===pendingStart);if(hit){pickA=hit;window.v140PendingStartSitPlayer=null;try{sessionStorage.removeItem('lsd-startsit-player')}catch(e){}const f=el.querySelector('[data-side="A"]');f.querySelector('.v124-search').value=hit.name;f.querySelector('.v124-picked').textContent=`${hit.pos} • ${hit.team} • ${hit.owner}`;}}
  async function draw(){
    if(!pickA||!pickB)return;
    await v139RefreshSelectedStatus([pickA.id,pickB.id]);
@@ -7636,19 +7681,16 @@ if ('serviceWorker' in navigator) {
   }
   return seasons.sort((a,b)=>Number(b.season)-Number(a.season));
  }
- function openTradeCalcV109(id){
-  const team=ownerV109(id);renderTool('tradecalc');
-  setTimeout(()=>{const teamSelect=document.querySelector('[data-v89team="A"]');if(teamSelect&&team){teamSelect.value=team.name;teamSelect.dispatchEvent(new Event('change',{bubbles:true}))}setTimeout(()=>{const pick=document.querySelector('[data-v89pick="A"]');if(!pick)return;const option=[...pick.options].find(o=>o.value===`p:${id}`);if(option){pick.value=option.value;document.querySelector('[data-v89add="A"]')?.click()}},20)},20);
- }
- function openCompareV109(id){
-  const team=ownerV109(id);renderTool('startsit');
-  let attempts=0;const selectPlayer=()=>{const teamSelect=document.getElementById('v62team')||document.getElementById('v61team');if(teamSelect&&team&&norm(teamSelect.value)!==norm(team.name)){teamSelect.value=team.name;teamSelect.dispatchEvent(new Event('change',{bubbles:true}));attempts=0;setTimeout(selectPlayer,180);return}const a=document.getElementById('v62a')||document.getElementById('v61a')||document.getElementById('ssA46');if(a&&[...a.options].some(o=>String(o.value)===String(id))){a.value=String(id);a.dispatchEvent(new Event('change',{bubbles:true}));return}if(attempts++<30)setTimeout(selectPlayer,180)};setTimeout(selectPlayer,100);
- }
+ function openTradeCalcV109(id){window.v140PendingTradePlayer=String(id);renderTool('tradecalc');}
+ function openCompareV109(id){window.v140PendingStartSitPlayer=String(id);try{sessionStorage.setItem('lsd-startsit-player',String(id))}catch(e){}renderTool('startsit');}
+ let playerReturnContextV140={page:'#homePage',scrollY:0};
+ function capturePlayerReturnV140(){const active=document.querySelector('.page.active');if(active&&active.id!=='playerPage')playerReturnContextV140={page:'#'+active.id,scrollY:window.scrollY||0};}
+ function restorePlayerReturnV140(){const dest=document.querySelector(playerReturnContextV140.page)?playerReturnContextV140.page:'#homePage';showPage(dest);setTimeout(()=>window.scrollTo({top:playerReturnContextV140.scrollY||0,behavior:'auto'}),0);}
  async function renderPlayerProfileV109(id,push=true){
   id=String(id||'');const page=ensurePlayerPageV109(),content=document.getElementById('playerContent');
   const info=playerInfoV18(id),raw=rawPlayerV109(id),dyn=fcEntryV109(id,false),red=fcEntryV109(id,true),owner=ownerV109(id),pos=String(info.position||'—').toUpperCase();
   if(!info?.name||/^Player \d+$/.test(info.name)){showPage('#playerPage');content.innerHTML='<div class="player-empty-v109">This player profile is not available in the current Sleeper player directory.</div>';return}
-  if(push){lastNonProfileHash=location.hash&&!location.hash.startsWith(PROFILE_HASH)?location.hash:'';history.pushState({playerId:id},'',PROFILE_HASH+encodeURIComponent(id))}
+  if(push){capturePlayerReturnV140();lastNonProfileHash=location.hash&&!location.hash.startsWith(PROFILE_HASH)?location.hash:'';history.pushState({playerId:id},'',PROFILE_HASH+encodeURIComponent(id))}
   showPage('#playerPage');document.title=`${info.name} • Lone Star Dynasty`;
   const dynRank=rankV109(id,false),redRank=rankV109(id,true),dynPos=posRankV109(id,pos,false),redPos=posRankV109(id,pos,true),projection=typeof currentProjectionV27==='function'?Number(currentProjectionV27(id)||0):0;
   const moves=transactionRowsV109(id);
@@ -7684,7 +7726,7 @@ if ('serviceWorker' in navigator) {
     </div>
    </div>
   </div>`;
-  document.getElementById('playerBackV109').onclick=()=>history.length>1?history.back():(showPage('#homePage'),history.replaceState({},'',lastNonProfileHash||location.pathname));
+  document.getElementById('playerBackV109').onclick=()=>{history.replaceState({},'',location.pathname+location.search);restorePlayerReturnV140();};
   document.getElementById('playerTradeV109').onclick=()=>openTradeCalcV109(id);document.getElementById('playerCompareV109').onclick=()=>openCompareV109(id);
   const ownerBtn=document.getElementById('playerOwnerV112');if(ownerBtn&&owner)ownerBtn.onclick=()=>renderFranchisePage(owner.name);
   const seasons=await weeklyRowsV109(id),weeksEl=document.getElementById('playerWeeksV109');if(weeksEl&&weeksEl.isConnected)weeksEl.outerHTML=seasons.length?`<div>${seasons.map(s=>`<details class="player-season-v111"><summary>${esc(s.season)} Season <span>${fmtV109(s.total,2)} pts</span></summary><div class="season-weeks-v111">${s.rows.length?s.rows.map(w=>`<div class="player-week-row-v109"><small>Week ${w.week}</small><strong>${esc(w.opponent)}</strong><div class="player-week-points-v109">${fmtV109(w.points,2)}</div></div>`).join(''):`<div class="player-empty-v109">Week ${Number(state.week||1)} will be added here when scoring begins. New weeks will appear automatically as the season progresses.</div>`}</div></details>`).join('')}</div>`:'<div class="player-empty-v109">Weekly scoring will populate after this player records a Lone Star result.</div>';
@@ -7692,7 +7734,7 @@ if ('serviceWorker' in navigator) {
  window.renderPlayerProfileV109=renderPlayerProfileV109;
  document.addEventListener('click',e=>{const el=e.target.closest('[data-player-profile-id]');if(!el||el.closest('#playerPage'))return;e.preventDefault();renderPlayerProfileV109(el.dataset.playerProfileId,true)});
  document.addEventListener('keydown',e=>{const el=e.target.closest?.('[data-player-profile-id]');if(el&&(e.key==='Enter'||e.key===' ')){e.preventDefault();renderPlayerProfileV109(el.dataset.playerProfileId,true)}});
- window.addEventListener('popstate',()=>{const m=location.hash.match(/^#player-(.+)$/);if(m)renderPlayerProfileV109(decodeURIComponent(m[1]),false);else{document.title='Lone Star Dynasty';showPage('#homePage')}});
+ window.addEventListener('popstate',()=>{const m=location.hash.match(/^#player-(.+)$/);if(m)renderPlayerProfileV109(decodeURIComponent(m[1]),false);else{document.title='Lone Star Dynasty';restorePlayerReturnV140()}});
  let queued=false;new MutationObserver(muts=>{if(queued)return;queued=true;requestAnimationFrame(()=>{queued=false;muts.forEach(m=>m.addedNodes.forEach(n=>{if(n.nodeType===1)linkPlayerNamesV109(n)}));linkPlayerNamesV109()})}).observe(document.documentElement,{childList:true,subtree:true});
  const start=()=>{ensurePlayerPageV109();linkPlayerNamesV109();const m=location.hash.match(/^#player-(.+)$/);if(m){const id=decodeURIComponent(m[1]);const wait=()=>{if(state?.players?.size||state?.fcDynasty?.length)renderPlayerProfileV109(id,false);else setTimeout(wait,120)};wait()}};
  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',start,{once:true});else start();
