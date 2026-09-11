@@ -63,7 +63,7 @@ async function cbs(pos,week){
 
 function lastNameKey(name){const a=clean(name).toLowerCase().replace(/[^a-z0-9' -]/g,' ').split(/\s+/).filter(Boolean);return (a[a.length-1]||'').replace(/[^a-z0-9]/g,'')}
 function resolveCBSAbbrev(label,pos,helpers){
- const text=clean(label).replace(new RegExp(`\b${pos}\b.*$`,'i'),'').trim();
+ const text=clean(label).replace(new RegExp(`\\b${pos}\\b.*$`,'i'),'').trim();
  const m=text.match(/^([A-Za-z])\.?\s+(.+)$/);if(!m)return text;
  const initial=m[1].toLowerCase(),last=lastNameKey(m[2]);
  const hits=helpers.filter(x=>x.position===pos&&x.name&&x.name[0]?.toLowerCase()===initial&&lastNameKey(x.name)===last);
