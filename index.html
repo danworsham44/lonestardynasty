@@ -776,7 +776,7 @@ main{padding-bottom:18px!important}.footer{margin-top:22px!important;padding:14p
 </style>
 
 <style id="v119GamedayStyle">
-#lsdGamedayV119{margin:14px 0 18px;border:1px solid rgba(215,65,65,.7);border-left:6px solid #c93636;background:linear-gradient(110deg,rgba(58,13,17,.94),rgba(8,18,29,.97));overflow:hidden}.v119-gd-head{display:flex;justify-content:space-between;padding:11px 14px;border-bottom:1px solid #ffffff1a}.v119-gd-title{font-weight:950;letter-spacing:1.5px;color:#f6ead1;font-size:17px}.v119-gd-live{font-size:11px;font-weight:900;color:#fff;background:#a7191f;padding:5px 8px}.v119-gd-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:#ffffff14}.v119-gd-card{background:#08121dea;padding:11px 12px;min-height:66px}.v119-gd-label{font-size:9px;letter-spacing:1.1px;font-weight:900;color:#b9bec6;text-transform:uppercase}.v119-gd-value{margin-top:5px;font-size:14px;font-weight:900;color:#f7f0df}.v119-ticker{display:flex;overflow:hidden;background:#070c12;min-height:38px}.v119-ticker-tag{background:#a7191f;color:white;font-weight:950;font-size:10px;padding:12px 10px}.v119-ticker-window{overflow:hidden;white-space:nowrap;flex:1}.v119-ticker-track{display:inline-block;padding-left:100%;animation:v119ticker 34s linear infinite;color:#eee3cf;font-weight:800;font-size:12px}.v119-ticker-item{margin-right:48px}@keyframes v119ticker{to{transform:translateX(-100%)}}@media(max-width:620px){.v119-gd-grid{grid-template-columns:1fr}.v119-gd-card{min-height:0}}
+#lsdGamedayV119{margin:14px 0 18px;border:1px solid rgba(215,65,65,.7);border-left:6px solid #c93636;background:linear-gradient(110deg,rgba(58,13,17,.94),rgba(8,18,29,.97));overflow:hidden}.v119-gd-head{display:flex;justify-content:space-between;padding:11px 14px;border-bottom:1px solid #ffffff1a}.v119-gd-title{font-weight:950;letter-spacing:1.5px;color:#f6ead1;font-size:17px}.v119-gd-live{font-size:11px;font-weight:900;color:#fff;background:#a7191f;padding:5px 8px}.v119-gd-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:#ffffff14}.v119-gd-card{background:#08121dea;padding:11px 12px;min-height:66px}.v119-gd-label{font-size:9px;letter-spacing:1.1px;font-weight:900;color:#b9bec6;text-transform:uppercase}.v119-gd-value{margin-top:5px;font-size:14px;font-weight:900;color:#f7f0df}.v119-ticker{display:flex;overflow:hidden;background:#070c12;min-height:38px}.v119-ticker-tag{position:relative;z-index:2;flex:none;background:#a7191f;color:white;font-weight:950;font-size:10px;padding:12px 10px}.v119-ticker-window{overflow:hidden;white-space:nowrap;flex:1}.v119-ticker-track{display:inline-flex;min-width:max-content;animation:v119ticker 64s linear infinite;color:#eee3cf;font-weight:800;font-size:12px;will-change:transform}.v119-ticker-item{flex:none;padding:11px 48px 10px 12px}@keyframes v119ticker{from{transform:translateX(0)}to{transform:translateX(-50%)}}.hero .match-stats{display:block;border:0;margin:10px auto 0}.motw-score-label{display:block;color:var(--muted);font-size:8px;font-weight:1000;letter-spacing:1px;text-transform:uppercase}.motw-live-score{display:block;margin-top:3px;color:#f0bd55;font-family:Impact,Haettenschweiler,sans-serif;font-size:31px;line-height:1}@media(max-width:620px){.v119-gd-grid{grid-template-columns:1fr}.v119-gd-card{min-height:0}.motw-live-score{font-size:27px}}
 </style>
 <style id="v121CbsStyle">
 .v121-cbs{margin-top:10px;padding:10px;border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.025)}
@@ -926,8 +926,10 @@ function sleeperTeamProjection(matchup){
  return found?total:NaN;
 }
 function projectedPoints(t){const m=state.matchups.find(x=>Number(x.roster_id)===Number(t.roster.roster_id));const calc=sleeperTeamProjection(m);if(Number.isFinite(calc))return calc.toFixed(2);const raw=m?.projected_points??m?.projected??m?.projected_score;return Number.isFinite(Number(raw))?Number(raw).toFixed(2):'—'}
+function currentMatchupScore(t){const m=state.matchups.find(x=>Number(x.roster_id)===Number(t?.roster?.roster_id));return m?Number(m.points||0).toFixed(1):'—'}
+function renderMOTWCurrentScores(){const a=state.featured?.[0],b=state.featured?.[1];if(!a||!b)return;const ae=$('#motwAStats'),be=$('#motwBStats');if(ae)ae.innerHTML=`<small class="motw-score-label">Current Score</small><strong class="motw-live-score">${esc(currentMatchupScore(a))}</strong>`;if(be)be.innerHTML=`<small class="motw-score-label">Current Score</small><strong class="motw-live-score">${esc(currentMatchupScore(b))}</strong>`;}
 function renderTape(a,b,againstA='—',againstB='—'){const rows=[['Record',rec(a.roster),rec(b.roster)],['Standings','#'+standingRank(a),'#'+standingRank(b)],['Projected Points For',projectedPoints(a),projectedPoints(b)],['Average Points',avgPoints(a),avgPoints(b)],['Against',againstA,againstB]];return `<div class="motw-tape-shell"><div class="motw-tape-title">Tale of the Tape</div><div class="motw-tape">${rows.map(([label,av,bv])=>`<div class="tape-team-value">${esc(av)}</div><div class="tape-label">${esc(label)}</div><div class="tape-team-value">${esc(bv)}</div>`).join('')}</div></div>`}
-function setMOTW(a,b){if(!a||!b)return;state.featured=[a,b];archiveMOTW(a,b);$('#motwA').textContent=a.name;$('#motwB').textContent=b.name;$('#motwAImg').src=a.avatar;$('#motwBImg').src=b.avatar;$('#motwAImg').onerror=function(){imgFallback(this)};$('#motwBImg').onerror=function(){imgFallback(this)};$('#motwARec').textContent=`Owner: ${a.owner}`;$('#motwBRec').textContent=`Owner: ${b.owner}`;$('#motwAStats').innerHTML='';$('#motwBStats').innerHTML='';let tape=$('#motwTape');if(!tape){tape=document.createElement('div');tape.id='motwTape';document.querySelector('#motw .hero-content').insertAdjacentElement('afterend',tape)}tape.innerHTML=renderTape(a,b,'Loading…','Loading…');headToHeadData(a,b).then(r=>{if(state.featured?.[0]===a&&state.featured?.[1]===b){const ar=r.meetings?`${r.wins}-${r.losses}${r.ties?'-'+r.ties:''}`:'0-0',br=r.meetings?`${r.losses}-${r.wins}${r.ties?'-'+r.ties:''}`:'0-0';tape.innerHTML=renderTape(a,b,ar,br)}}).catch(()=>{tape.innerHTML=renderTape(a,b,'—','—')});$('#motwWeek').textContent=`WEEK ${Number(state.displayWeek||state.week||1)} • LONE STAR DYNASTY`;$('#motwNote').textContent='Week 1 featured matchup • selected by combined FantasyCalc roster strength.'}
+function setMOTW(a,b){if(!a||!b)return;state.featured=[a,b];archiveMOTW(a,b);$('#motwA').textContent=a.name;$('#motwB').textContent=b.name;$('#motwAImg').src=a.avatar;$('#motwBImg').src=b.avatar;$('#motwAImg').onerror=function(){imgFallback(this)};$('#motwBImg').onerror=function(){imgFallback(this)};$('#motwARec').textContent=`Owner: ${a.owner}`;$('#motwBRec').textContent=`Owner: ${b.owner}`;renderMOTWCurrentScores();let tape=$('#motwTape');if(!tape){tape=document.createElement('div');tape.id='motwTape';document.querySelector('#motw .hero-content').insertAdjacentElement('afterend',tape)}tape.innerHTML=renderTape(a,b,'Loading…','Loading…');headToHeadData(a,b).then(r=>{if(state.featured?.[0]===a&&state.featured?.[1]===b){const ar=r.meetings?`${r.wins}-${r.losses}${r.ties?'-'+r.ties:''}`:'0-0',br=r.meetings?`${r.losses}-${r.wins}${r.ties?'-'+r.ties:''}`:'0-0';tape.innerHTML=renderTape(a,b,ar,br)}}).catch(()=>{tape.innerHTML=renderTape(a,b,'—','—')});$('#motwWeek').textContent=`WEEK ${Number(state.displayWeek||state.week||1)} • LONE STAR DYNASTY`;$('#motwNote').textContent='Week 1 featured matchup • selected by combined FantasyCalc roster strength.'}
 function archiveMOTW(a,b){
   try{
     const season=String(state.league?.season||new Date().getFullYear());
@@ -7259,9 +7261,7 @@ function v119Gameday(){
  document.getElementById('v119Closest').textContent=closest?`${closest.a.name} ${closest.sa.toFixed(1)} – ${closest.b.name} ${closest.sb.toFixed(1)} • ${closest.d.toFixed(1)} pts`:`Week ${week} matchups are set. Scores appear here live.`;
  document.getElementById('v119Lead').textContent=widest?`${widest.sa>=widest.sb?widest.a.name:widest.b.name} +${widest.d.toFixed(1)}`:'The week is waiting to kick off.';
  const bg=games.find(g=>norm(g.a.name)===norm('DakstreetBoys')||norm(g.b.name)===norm('DakstreetBoys')),belt=document.getElementById('v119Belt'),lines=[];
- if(bg&&(bg.sa>0||bg.sb>0)){const ha=norm(bg.a.name)===norm('DakstreetBoys'),hs=ha?bg.sa:bg.sb,os=ha?bg.sb:bg.sa,opp=ha?bg.b:bg.a;belt.textContent=hs<os?`⚠️ ${opp.name} is currently taking the belt by ${(os-hs).toFixed(1)}`:`DakstreetBoys is defending the belt${hs>os?` by ${(hs-os).toFixed(1)}`:''}.`;lines.push(hs<os?`🥊 BELT WATCH: ${opp.name} is threatening the champ by ${(os-hs).toFixed(1)}`:`🥊 BELT WATCH: DakstreetBoys is defending${hs>os?` by ${(hs-os).toFixed(1)}`:''}`)}else belt.textContent='DakstreetBoys enters 2026 with the belt.';
- if(closest&&closest.d<=12)lines.push(`${closest.d<=5?'🚨 NAIL-BITER':'🔥 CLOSE ONE'}: ${closest.a.name} vs ${closest.b.name} • ${closest.d.toFixed(1)} pts apart`);
- if(widest&&widest.d>=25)lines.push(`💥 BLOWOUT ALERT: ${widest.sa>=widest.sb?widest.a.name:widest.b.name} leads by ${widest.d.toFixed(1)}`);else if(widest)lines.push(`📈 BIGGEST LEAD: ${widest.sa>=widest.sb?widest.a.name:widest.b.name} +${widest.d.toFixed(1)}`);
+ if(bg&&(bg.sa>0||bg.sb>0)){const ha=norm(bg.a.name)===norm('DakstreetBoys'),hs=ha?bg.sa:bg.sb,os=ha?bg.sb:bg.sa,opp=ha?bg.b:bg.a;belt.textContent=hs<os?`⚠️ ${opp.name} is currently taking the belt by ${(os-hs).toFixed(1)}`:`DakstreetBoys is defending the belt${hs>os?` by ${(hs-os).toFixed(1)}`:''}.`}else belt.textContent='DakstreetBoys enters 2026 with the belt.';
  // Upset watch: a team that entered the week as the Sleeper projection underdog is leading live.
  played.forEach(g=>{if(!Number.isFinite(g.pa)||!Number.isFinite(g.pb)||g.pa===g.pb||g.sa===g.sb)return;const under=g.pa<g.pb?g.a:g.b,underScore=g.pa<g.pb?g.sa:g.sb,favScore=g.pa<g.pb?g.sb:g.sa,fav=g.pa<g.pb?g.b:g.a;if(underScore>favScore)lines.push(`⚡ UPSET WATCH: ${under.name} leads projected favorite ${fav.name} by ${(underScore-favScore).toFixed(1)}`)});
  // Live weekly high/low score races.
@@ -7280,7 +7280,8 @@ function v119Gameday(){
  if((mo===12&&day>=31)||(mo===1&&day<=2))evergreen='🎆 HAPPY NEW YEAR FROM LONE STAR DYNASTY';
  lines.push(evergreen);
  if(lines.length===1)lines.push(`🏈 WEEK ${week}: LSD LIVE is standing by for the next league headline`);
- document.getElementById('v119Ticker').innerHTML=lines.slice(0,12).map(x=>`<span class="v119-ticker-item">${esc(x)}</span>`).join('');
+ const tickerLines=lines.slice(0,12),loop=tickerLines.length?tickerLines:[`🏈 WEEK ${week}: LSD LIVE is standing by for the next league headline`];
+ document.getElementById('v119Ticker').innerHTML=[...loop,...loop].map(x=>`<span class="v119-ticker-item">${esc(x)}</span>`).join('');
 }
 const _v119RenderAll=renderAll;renderAll=function(){_v119RenderAll();setTimeout(v119Gameday,0)};
 
@@ -7294,7 +7295,7 @@ async function v141RefreshLsdLive(){
  v141LiveRefreshPromise=(async()=>{
   try{
    const fresh=await getJSON(`https://api.sleeper.app/v1/league/${LEAGUE_ID}/matchups/${week}`);
-   if(Array.isArray(fresh)){state.displayWeek=week;state.matchups=fresh;v119Gameday();markSleeperSynced();}
+   if(Array.isArray(fresh)){state.displayWeek=week;state.matchups=fresh;v119Gameday();renderMOTWCurrentScores();markSleeperSynced();}
   }catch(e){}
   finally{v141LiveRefreshPromise=null;}
  })();
@@ -7406,7 +7407,8 @@ function v131ThirdFor(data,P){
  const rows=Array.isArray(data?.players)?data.players:[];
  const n=v62NormName(P.p.name),pos=String(P.pos||'').toUpperCase();
  return rows.find(x=>v62NormName(x.name)===n&&String(x.position||'').toUpperCase()===pos)
-     || rows.find(x=>v62NormName(x.name)===n)||null;
+     || rows.find(x=>v62NormName(x.name)===n)
+     || rows.find(x=>{const rn=String(x.name||'').trim().match(/^([A-Za-z])\.?\s+(.+)$/),parts=String(P.p.name||'').trim().split(/\s+/);return rn&&String(x.position||'').toUpperCase()===pos&&parts[0]?.[0]?.toLowerCase()===rn[1].toLowerCase()&&v62NormName(parts.filter(p=>!/^(jr|sr|ii|iii|iv)\.?$/i.test(p)).pop())===v62NormName(rn[2]);})||null;
 }
 function v130Fmt(n){return Number.isFinite(Number(n))?Number(n).toFixed(1):'—'}
 function v139UnavailableStatus(P){
