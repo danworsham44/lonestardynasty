@@ -61,7 +61,8 @@ async function cbs(pos,week){
  return {rows:out,diag:{source:'CBS',position:pos,url,status:r.status,bytes:r.bytes,parsed:out.length,ms:r.ms}};
 }
 
-function lastNameKey(name){const a=clean(name).toLowerCase().replace(/[^a-z0-9' -]/g,' ').split(/\s+/).filter(Boolean);return (a[a.length-1]||'').replace(/[^a-z0-9]/g,'')}
+function lastNameKey(name){const a=clean(name).toLowerCase().replace(/[^a-z0-9' -]/g,' ').split(/\s+/).filter(Boolean);while(a.length>1&&/^(jr|sr|ii|iii|iv)$/.test(a[a.length-1].replace(/[^a-z0-9]/g,'')))a.pop();return (a[a.length-1]||'').replace(/[^a-z0-9]/g,'')}
+function abbrevMatches(abbrev,full,pos){const text=clean(abbrev).replace(new RegExp(`\\b${pos}\\b.*$`,'i'),'').trim(),m=text.match(/^([A-Za-z])\.?\s+(.+)$/);return !!m&&clean(full)[0]?.toLowerCase()===m[1].toLowerCase()&&lastNameKey(full)===lastNameKey(m[2]);}
 function resolveCBSAbbrev(label,pos,helpers){
  const text=clean(label).replace(new RegExp(`\\b${pos}\\b.*$`,'i'),'').trim();
  const m=text.match(/^([A-Za-z])\.?\s+(.+)$/);if(!m)return text;
@@ -70,25 +71,38 @@ function resolveCBSAbbrev(label,pos,helpers){
  return hits.length===1?hits[0].name:text;
 }
 async function cbsRankings(pos,week){
- const urls=[`https://new.cbssports.com/fantasy/football/rankings/ppr/${pos}/weekly/`,`https://www.cbssports.com/fantasy/football/rankings/ppr/${pos}/weekly/`];
+ const urls=[`https://www.cbssports.com/fantasy/football/rankings/ppr/${pos}/weekly/`,`https://new.cbssports.com/fantasy/football/rankings/ppr/${pos}/weekly/`];
  let r=null;for(const u of urls){try{const x=await get(u);if(x.ok){r=x;break}if(!r)r=x}catch(e){}}
  if(!r?.ok)throw Object.assign(new Error(`CBS rankings ${pos} HTTP ${r?.status||0}`),{diag:r||{url:urls[0]}});
  const url=r.url;
- const helpers=await fantasyProsPlayers(),out=[];
+ const helpers=await fantasyProsPlayers().catch(()=>[]),out=[];
+ // CBS now renders the weekly consensus board as div-based player rows rather
+ // than a table. The player URL includes the full name even though the visible
+ // label is abbreviated (for example, /tyler-warren/ + "T. Warren").
+ const start=r.body.indexOf('<div class="player-wrapper">'),end=start>=0?r.body.indexOf('<div class="experts-column',start):-1;
+ const consensusBlock=start>=0?r.body.slice(start,end>start?end:undefined):r.body;
+ const divRow=/<div class="player-row[^"]*">\s*<div class="rank">\s*(\d+)\s*<\/div>[\s\S]*?<a\s+href="\/nfl\/players\/\d+\/([^/]+)\/fantasy\/">[\s\S]*?<span class="player-name">([^<]+)<\/span>[\s\S]*?<div class="player-stats">([^<]*)<\/div>/gi;
+ for(const m of consensusBlock.matchAll(divRow)){
+  const rank=Number(m[1]);if(!Number.isFinite(rank)||rank<1||rank>250)continue;
+  const slugName=clean(m[2]).split('-').filter(Boolean).map(x=>/^(jr|sr|ii|iii|iv)$/i.test(x)?x.toUpperCase():x[0]?.toUpperCase()+x.slice(1)).join(' ');
+  const name=slugName||resolveCBSAbbrev(m[3],pos,helpers);if(name)out.push({name,position:pos,cbsRank:rank,cbsOpponent:clean(m[4])});
+ }
+ // Retain the former table parser as a fallback in case CBS switches markup
+ // again or serves its legacy layout to a particular edge location.
  for(const tr of r.body.matchAll(/<tr\b[^>]*>([\s\S]*?)<\/tr>/gi)){
   const c=cells(tr[1]);if(c.length<2)continue;
   let rank=NaN,playerCell='',opp='';
   for(let i=0;i<c.length;i++){if(!Number.isFinite(rank)&&/^\d+$/.test(c[i])){rank=Number(c[i]);playerCell=c[i+1]||'';opp=c[i+2]||'';break}}
   if(!Number.isFinite(rank)||rank<1||rank>250||!playerCell)continue;
   const name=resolveCBSAbbrev(playerCell,pos,helpers);if(!name)continue;
-  out.push({name,position:pos,cbsRank:rank,cbsOpponent:clean(opp)});
+  if(!out.some(x=>x.cbsRank===rank))out.push({name,position:pos,cbsRank:rank,cbsOpponent:clean(opp)});
  }
  if(out.length<8)throw Object.assign(new Error(`CBS rankings ${pos} parsed ${out.length}`),{diag:{...r,body:undefined,parsed:out.length,sample:out.slice(0,3)}});
  return {rows:out,diag:{source:'CBS Rankings',position:pos,url,status:r.status,bytes:r.bytes,parsed:out.length,ms:r.ms}};
 }
 export async function fetchWeeklyConsensus(week,{diagnostics=false}={}){
  const map=new Map(),status=[],errors=[];
- const merge=x=>{const k=key(x.name);if(k)map.set(k,{...(map.get(k)||{}),...x})};
+ const merge=x=>{let k=key(x.name);if(x.cbsRank){const hit=[...map.entries()].find(([,v])=>String(v.position||'').toUpperCase()===String(x.position||'').toUpperCase()&&abbrevMatches(x.name,v.name,x.position));if(hit)k=hit[0]}if(k)map.set(k,{...(map.get(k)||{}),...x})};
  for(const pos of POS){
    try{const r=await cbs(pos,week);r.rows.forEach(merge);status.push({...r.diag,ok:true})}
    catch(e){const d=e?.diag||{};status.push({source:'CBS',position:pos,ok:false,url:d.url||'',status:d.status||0,bytes:d.bytes||0,parsed:d.parsed||0,ms:d.ms||0,error:String(e?.message||e)});errors.push(`CBS ${pos}: ${e?.message||e}`)}
