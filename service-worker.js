@@ -1,4 +1,4 @@
-const CACHE_NAME = 'lone-star-dynasty-v142-ticker-motw-cbs';
+const CACHE_NAME = 'lone-star-dynasty-v143-stable-live-ticker';
 const APP_SHELL = [
   './',
   './index.html',
