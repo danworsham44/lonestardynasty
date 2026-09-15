@@ -1,4 +1,4 @@
-const CACHE_NAME = 'lone-star-dynasty-v147-integrated-standings';
+const CACHE_NAME = 'lone-star-dynasty-v149-standings-links-movement';
 const APP_SHELL = [
   './',
   './index.html',

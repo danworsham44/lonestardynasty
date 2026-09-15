@@ -13,7 +13,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
 <meta name="mobile-web-app-capable" content="yes" />
 <meta name="application-name" content="Lone Star Dynasty" />
-<meta name="lsd-build" content="v147" />
+<meta name="lsd-build" content="v149" />
 <title>Lone Star Dynasty</title>
 <style>
 :root{--ink:#07101a;--ink2:#0d1824;--panel:rgba(10,18,28,.91);--paper:#efe4cc;--muted:#aeb7c2;--red:#c83632;--red2:#8d201f;--line:rgba(239,228,204,.18);--gold:#c49a47;--green:#64b76d;--shadow:0 18px 50px rgba(0,0,0,.34)}
@@ -866,7 +866,7 @@ function recordScore(r){const s=r.settings||{};return (s.wins||0)*10000-(s.losse
 function pct(r){const s=r.settings||{},g=(s.wins||0)+(s.losses||0)+(s.ties||0);return g?((s.wins||0)+(s.ties||0)/2)/g:0}
 function teamByRoster(id){return state.teams.find(t=>Number(t.roster.roster_id)===Number(id))}
 function teamByOwner(id){return state.teams.find(t=>String(t.user?.user_id)===String(id))}
-function rankRow(i,t,right,sub=''){const detail=sub||`Owner: ${esc(t.owner)}`;return `<div class="rank-row"><div class="rank-num">${i+1}</div><img class="mini-logo" src="${esc(t.avatar)}" onerror="imgFallback(this)" alt="${esc(t.name)} avatar"><div class="team-line"><strong>${esc(t.name)}</strong><small>${detail}</small></div><div class="stat">${right}</div></div>`}
+function rankRow(i,t,right,sub=''){const detail=sub||`Owner: ${esc(t.owner)}`;return `<div class="rank-row franchise-link-v149" data-franchise-roster="${Number(t?.roster?.roster_id||0)}" role="button" tabindex="0" aria-label="Open ${esc(t.name)} franchise profile"><div class="rank-num">${i+1}</div><img class="mini-logo" src="${esc(t.avatar)}" onerror="imgFallback(this)" alt="${esc(t.name)} avatar"><div class="team-line"><strong>${esc(t.name)}</strong><small>${detail}</small></div><div class="stat">${right}</div></div>`}
 function showPage(id){document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));$(id).classList.add('active');window.scrollTo({top:0,behavior:'smooth'});closeMenus()}
 function closeMenus(){['#teamsMenu','#toolsMenu'].forEach(s=>$(s).classList.remove('open'));$('#teamsBtn').setAttribute('aria-expanded','false');$('#toolsBtn').setAttribute('aria-expanded','false')}
 function freshApiUrl(url){if(!String(url).includes('api.sleeper.app'))return url;const sep=String(url).includes('?')?'&':'?';return `${url}${sep}_lsd_sync=${Date.now()}_${Math.random().toString(36).slice(2,8)}`}
@@ -901,7 +901,7 @@ function renderStandings(){const sorted=sortedStandings();$('#leagueStandings').
  const hh=state.teams.find(t=>norm(t.name)==='haunted hitman');const aTownId=Number(hh?.roster?.settings?.division||2);const otherId=aTownId===1?2:1;const divNames={[aTownId]:'A-Town',[otherId]:'The Outsiders'};let html='';[aTownId,otherId].forEach((d,di)=>{let teams=sorted.filter(t=>Number(t.roster.settings?.division||0)===d);if(!teams.length)teams=sorted.slice(di*5,di*5+5);html+=`<div class="division"><div class="division-name">${divNames[d]}</div>${teams.map((t,i)=>rankRow(i,t,rec(t.roster))).join('')}</div>`});$('#divisionStandings').innerHTML=`<div class="divisions">${html}</div>`;
  $('#draftOrder').innerHTML=[...sorted].reverse().map((t,i)=>rankRow(i,t,`1.${String(i+1).padStart(2,'0')}`,`Projected • ${rec(t.roster)}`)).join('')}
 function rosterValue(t,redraft=false,pos=null){const map=new Map((redraft?state.fcRedraft:state.fcDynasty).map(v=>[String(v.player?.sleeperId),v]));let sum=0;(t.roster.players||[]).forEach(id=>{const v=map.get(String(id));if(v&&(!pos||v.player?.position===pos))sum+=Number(v.value||0)});return sum}
-function renderPower(){const redraft=state.powerMode==='redraft';const source=redraft?state.fcRedraft:state.fcDynasty;if(!source.length){$('#powerRankings').innerHTML='<div class="empty">FantasyCalc values will populate when the live API connects.</div>';return}const ranked=[...state.teams].map(t=>({...t,value:rosterValue(t,redraft)})).sort((a,b)=>b.value-a.value);let prev={};const key=`lsd-power-snapshot-${state.powerMode}`;try{prev=JSON.parse(localStorage.getItem(key)||'{}')}catch{}const current={};$('#powerRankings').innerHTML=ranked.map((t,i)=>{current[norm(t.name)]=i+1;const before=Number(prev[norm(t.name)]||0);const delta=before?before-(i+1):0;const trend=delta>0?`<span class="up">▲ ${delta}</span>`:delta<0?`<span class="down">▼ ${Math.abs(delta)}</span>`:'<span class="neutral">—</span>';return `<div class="rank-row"><div class="rank-num">${i+1}</div><img class="mini-logo" src="${esc(t.avatar)}" onerror="imgFallback(this)" alt="${esc(t.name)} avatar"><div class="team-line"><strong>${esc(t.name)}</strong><small>FantasyCalc ${redraft?'redraft':'dynasty'} value • ${trend}</small></div><div class="stat">${t.value.toLocaleString()}</div></div>`}).join('');localStorage.setItem(key,JSON.stringify(current));document.querySelectorAll('[data-power]').forEach(b=>b.classList.toggle('active',b.dataset.power===state.powerMode))}
+function renderPower(){const redraft=state.powerMode==='redraft';const source=redraft?state.fcRedraft:state.fcDynasty;if(!source.length){$('#powerRankings').innerHTML='<div class="empty">FantasyCalc values will populate when the live API connects.</div>';return}const ranked=[...state.teams].map(t=>({...t,value:rosterValue(t,redraft)})).sort((a,b)=>b.value-a.value);let prev={};const key=`lsd-power-snapshot-${state.powerMode}`;try{prev=JSON.parse(localStorage.getItem(key)||'{}')}catch{}const current={};$('#powerRankings').innerHTML=ranked.map((t,i)=>{current[norm(t.name)]=i+1;const before=Number(prev[norm(t.name)]||0);const delta=before?before-(i+1):0;const trend=delta>0?`<span class="up">▲ ${delta}</span>`:delta<0?`<span class="down">▼ ${Math.abs(delta)}</span>`:'<span class="neutral">—</span>';return `<div class="rank-row franchise-link-v149" data-franchise-roster="${Number(t.roster?.roster_id||0)}" role="button" tabindex="0" aria-label="Open ${esc(t.name)} franchise profile"><div class="rank-num">${i+1}</div><img class="mini-logo" src="${esc(t.avatar)}" onerror="imgFallback(this)" alt="${esc(t.name)} avatar"><div class="team-line"><strong>${esc(t.name)}</strong><small>FantasyCalc ${redraft?'redraft':'dynasty'} value • ${trend}</small></div><div class="stat">${t.value.toLocaleString()}</div></div>`}).join('');localStorage.setItem(key,JSON.stringify(current));document.querySelectorAll('[data-power]').forEach(b=>b.classList.toggle('active',b.dataset.power===state.powerMode))}
 function renderMOTW(){if(!state.matchups.length){const [a,b]=sortedStandings();setMOTW(a,b);return}const groups={};state.matchups.forEach(m=>(groups[m.matchup_id]??=[]).push(m));const games=Object.values(groups).filter(g=>g.length===2).map(g=>{const a=teamByRoster(g[0].roster_id),b=teamByRoster(g[1].roster_id);const dyn=(a?rosterValue(a):0)+(b?rosterValue(b):0);const red=(a?rosterValue(a,true):0)+(b?rosterValue(b,true):0);return {a,b,score:dyn||red||((a?recordScore(a.roster):0)+(b?recordScore(b.roster):0))}}).filter(g=>g.a&&g.b).sort((x,y)=>y.score-x.score);if(games[0])setMOTW(games[0].a,games[0].b)}
 function standingRank(t){return sortedStandings().findIndex(x=>x===t)+1}
 function avgPoints(t){const s=t.roster.settings||{},g=(s.wins||0)+(s.losses||0)+(s.ties||0);return g?(Number(fmtPts(t.roster))/g).toFixed(1):'—'}
@@ -932,13 +932,22 @@ function renderTape(a,b,againstA='—',againstB='—'){const rows=[['Record',rec
 function setMOTW(a,b){if(!a||!b)return;state.featured=[a,b];archiveMOTW(a,b);$('#motwA').textContent=a.name;$('#motwB').textContent=b.name;$('#motwAImg').src=a.avatar;$('#motwBImg').src=b.avatar;$('#motwAImg').onerror=function(){imgFallback(this)};$('#motwBImg').onerror=function(){imgFallback(this)};$('#motwARec').textContent=`Owner: ${a.owner}`;$('#motwBRec').textContent=`Owner: ${b.owner}`;renderMOTWCurrentScores();let tape=$('#motwTape');if(!tape){tape=document.createElement('div');tape.id='motwTape';document.querySelector('#motw .hero-content').insertAdjacentElement('afterend',tape)}tape.innerHTML=renderTape(a,b,'Loading…','Loading…');headToHeadData(a,b).then(r=>{if(state.featured?.[0]===a&&state.featured?.[1]===b){const ar=r.meetings?`${r.wins}-${r.losses}${r.ties?'-'+r.ties:''}`:'0-0',br=r.meetings?`${r.losses}-${r.wins}${r.ties?'-'+r.ties:''}`:'0-0';tape.innerHTML=renderTape(a,b,ar,br)}}).catch(()=>{tape.innerHTML=renderTape(a,b,'—','—')});$('#motwWeek').textContent=`WEEK ${Number(state.displayWeek||state.week||1)} • LONE STAR DYNASTY`;$('#motwNote').textContent='Week 1 featured matchup • selected by combined FantasyCalc roster strength.'}
 function archiveMOTW(a,b){
   try{
+    /* Never archive the startup placeholders before Sleeper's matchup feed resolves. */
+    if(!state.league||!state.matchups.length||!v143LiveReady)return;
     const season=String(state.league?.season||new Date().getFullYear());
     const week=Number(state.displayWeek||1);
     const key='lsd-motw-history';
     const history=JSON.parse(localStorage.getItem(key)||'[]');
-    const entry={season,week,a:a.name,b:b.name,aAvatar:a.avatar,bAvatar:b.avatar,aOwner:a.owner,bOwner:b.owner,savedAt:Date.now()};
-    const filtered=history.filter(x=>!(String(x.season)===season&&Number(x.week)===week));
-    filtered.push(entry);
+    const makeEntry=(ta,tb,w)=>({season,week:Number(w),a:ta.name,b:tb.name,aRosterId:Number(ta.roster?.roster_id),bRosterId:Number(tb.roster?.roster_id),aAvatar:ta.avatar,bAvatar:tb.avatar,aOwner:ta.owner,bOwner:tb.owner,savedAt:Date.now()});
+    let filtered=history.filter(x=>!(String(x.season)===season&&Number(x.week)===week));
+    filtered.push(makeEntry(a,b,week));
+    /* Commissioner-selected weeks are authoritative and repair any fallback snapshot already stored on this device. */
+    const overrides=typeof MOTW_COMMISSIONER_OVERRIDES!=='undefined'?MOTW_COMMISSIONER_OVERRIDES?.[season]:null;
+    Object.entries(overrides||{}).forEach(([w,pair])=>{
+      if(Number(w)>week||!Array.isArray(pair)||pair.length!==2)return;
+      const ta=state.teams.find(t=>norm(t.name)===norm(pair[0])),tb=state.teams.find(t=>norm(t.name)===norm(pair[1]));if(!ta||!tb)return;
+      filtered=filtered.filter(x=>!(String(x.season)===season&&Number(x.week)===Number(w)));filtered.push(makeEntry(ta,tb,w));
+    });
     filtered.sort((x,y)=>Number(y.season)-Number(x.season)||Number(y.week)-Number(x.week));
     localStorage.setItem(key,JSON.stringify(filtered.slice(0,100)));
   }catch{}
@@ -949,9 +958,12 @@ async function motwOutcome(h){
   if(!lg&&String(h.season)==='2025')lg=await getJSON(`https://api.sleeper.app/v1/league/${KNOWN_HISTORY_IDS[0]}`);
   if(!lg)return null;
   const [users,rosters,ms]=await Promise.all([getJSON(`https://api.sleeper.app/v1/league/${lg.league_id}/users`),getJSON(`https://api.sleeper.app/v1/league/${lg.league_id}/rosters`),getJSON(`https://api.sleeper.app/v1/league/${lg.league_id}/matchups/${Number(h.week)}`)]);
-  const ta=state.teams.find(t=>norm(t.name)===norm(h.a)),tb=state.teams.find(t=>norm(t.name)===norm(h.b));if(!ta||!tb)return null;
-  const ra=historicalRosterFor(ta,users,rosters,lg),rb=historicalRosterFor(tb,users,rosters,lg);if(!ra||!rb)return null;
-  const ma=ms.find(m=>Number(m.roster_id)===Number(ra.roster_id)),mb=ms.find(m=>Number(m.roster_id)===Number(rb.roster_id));if(!ma||!mb||ma.matchup_id!==mb.matchup_id)return null;
+  const ta=state.teams.find(t=>Number(t.roster?.roster_id)===Number(h.aRosterId))||state.teams.find(t=>norm(t.name)===norm(h.a));
+  const tb=state.teams.find(t=>Number(t.roster?.roster_id)===Number(h.bRosterId))||state.teams.find(t=>norm(t.name)===norm(h.b));if(!ta||!tb)return null;
+  const currentSeason=String(lg.league_id)===String(state.league?.league_id);
+  const ra=currentSeason&&h.aRosterId?rosters.find(r=>Number(r.roster_id)===Number(h.aRosterId)):historicalRosterFor(ta,users,rosters,lg);
+  const rb=currentSeason&&h.bRosterId?rosters.find(r=>Number(r.roster_id)===Number(h.bRosterId)):historicalRosterFor(tb,users,rosters,lg);if(!ra||!rb)return null;
+  const ma=ms.find(m=>Number(m.roster_id)===Number(ra.roster_id)),mb=ms.find(m=>Number(m.roster_id)===Number(rb.roster_id));if(!ma||!mb)return null;if(ma.matchup_id!==mb.matchup_id)return {invalid:true};
   const pa=Number(ma.points),pb=Number(mb.points);if(!Number.isFinite(pa)||!Number.isFinite(pb)||(pa===0&&pb===0))return {played:false};
   return {played:true,aScore:pa,bScore:pb,winner:pa>pb?h.a:pb>pa?h.b:'Tie'};
  }catch{return null}
@@ -963,7 +975,9 @@ async function renderMOTWHistory(el){
  if(!history.length)return;
  const enriched=await Promise.all(history.map(async h=>({...h,outcome:await motwOutcome(h)})));
  const body=el.querySelector('#motwArchiveBody');if(!body)return;
- body.innerHTML=enriched.map(h=>{const o=h.outcome;const score=o?.played?`${o.aScore.toFixed(2)} — ${o.bScore.toFixed(2)}`:'Scheduled';const result=o?.played?(o.winner==='Tie'?'FINAL • TIE':`FINAL • ${esc(o.winner)} WON`):'Not played yet';return `<div class="feed-item"><div class="feed-time">${esc(h.season)} • Week ${Number(h.week)} • ${result}</div><div class="feed-main" style="display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);gap:12px;align-items:center;margin-top:10px"><div style="display:flex;align-items:center;gap:9px;min-width:0"><img class="mini-logo" src="${esc(h.aAvatar||'lone-star-logo.jpg')}" onerror="imgFallback(this)" alt=""><div><strong>${esc(h.a)}</strong><div style="color:var(--muted);font-size:10px">Owner: ${esc(h.aOwner||'')}</div></div></div><div style="text-align:center"><div style="font-family:Impact;font-size:22px;color:var(--red)">VS</div><div style="font-family:Impact;font-size:18px;margin-top:4px">${score}</div></div><div style="display:flex;align-items:center;gap:9px;justify-content:flex-end;min-width:0;text-align:right"><div><strong>${esc(h.b)}</strong><div style="color:var(--muted);font-size:10px">Owner: ${esc(h.bOwner||'')}</div></div><img class="mini-logo" src="${esc(h.bAvatar||'lone-star-logo.jpg')}" onerror="imgFallback(this)" alt=""></div></div></div>`}).join('');
+ const valid=enriched.filter(h=>!h.outcome?.invalid);
+ try{localStorage.setItem('lsd-motw-history',JSON.stringify(valid.map(({outcome,...h})=>h).slice(0,100)))}catch{}
+ body.innerHTML=valid.length?valid.map(h=>{const o=h.outcome;const score=o?.played?`${o.aScore.toFixed(2)} — ${o.bScore.toFixed(2)}`:'Scheduled';const result=o?.played?(o.winner==='Tie'?'FINAL • TIE':`FINAL • ${esc(o.winner)} WON`):'Not played yet';return `<div class="feed-item"><div class="feed-time">${esc(h.season)} • Week ${Number(h.week)} • ${result}</div><div class="feed-main" style="display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);gap:12px;align-items:center;margin-top:10px"><div style="display:flex;align-items:center;gap:9px;min-width:0"><img class="mini-logo" src="${esc(h.aAvatar||'lone-star-logo.jpg')}" onerror="imgFallback(this)" alt=""><div><strong>${esc(h.a)}</strong><div style="color:var(--muted);font-size:10px">Owner: ${esc(h.aOwner||'')}</div></div></div><div style="text-align:center"><div style="font-family:Impact;font-size:22px;color:var(--red)">VS</div><div style="font-family:Impact;font-size:18px;margin-top:4px">${score}</div></div><div style="display:flex;align-items:center;gap:9px;justify-content:flex-end;min-width:0;text-align:right"><div><strong>${esc(h.b)}</strong><div style="color:var(--muted);font-size:10px">Owner: ${esc(h.bOwner||'')}</div></div><img class="mini-logo" src="${esc(h.bAvatar||'lone-star-logo.jpg')}" onerror="imgFallback(this)" alt=""></div></div></div>`}).join(''):'<div class="empty">No valid Matchup of the Week entries have been archived yet.</div>';
 }
 function renderPulse(){const p=state.performance;if(!p){$('#pulse').innerHTML=[['🔥 HOT','Week 1 starts the streak board'],['❄️ COLD','Week 1 starts the streak board'],['⭐ TOP PERFORMER','Awaiting first final score'],['⬇ LOWEST PERFORMER','Awaiting first final score']].map(x=>`<div class="pulse-item"><div class="pulse-label">${x[0]}</div><div class="pulse-value">${esc(x[1])}</div></div>`).join('');return}const hot=p.hot?`${p.hot.team.name} • W${p.hot.count}`:'No active win streak';const cold=p.cold?`${p.cold.team.name} • L${p.cold.count}`:'No active loss streak';const top=p.top?`${p.top.team.name} • ${p.top.points.toFixed(1)}`:'Awaiting score';const low=p.low?`${p.low.team.name} • ${p.low.points.toFixed(1)}`:'Awaiting score';const pulse=[['🔥 HOT',hot],['❄️ COLD',cold],['⭐ TOP PERFORMER',top],['⬇ LOWEST PERFORMER',low]];$('#pulse').innerHTML=pulse.map(x=>`<div class="pulse-item"><div class="pulse-label">${x[0]}</div><div class="pulse-value">${esc(x[1])}</div></div>`).join('')}
 async function loadSeasonPerformance(){if(!state.league)return;const current=Math.max(1,Number(state.nfl?.week||1));const completed=Math.max(0,current-1);if(!completed){state.performance=null;renderPulse();return}const results=new Map(state.teams.map(t=>[Number(t.roster.roster_id),[]]));let top=null,low=null;for(let w=1;w<=completed;w++){let ms=[];try{ms=await getJSON(`https://api.sleeper.app/v1/league/${LEAGUE_ID}/matchups/${w}`)}catch{continue}const groups={};ms.forEach(m=>(groups[m.matchup_id]??=[]).push(m));for(const g of Object.values(groups)){if(g.length!==2)continue;const [a,b]=g;if(Number(a.points)===0&&Number(b.points)===0)continue;const ta=teamByRoster(a.roster_id),tb=teamByRoster(b.roster_id);if(!ta||!tb)continue;const pa=Number(a.points||0),pb=Number(b.points||0);results.get(Number(a.roster_id)).push(pa>pb?'W':pa<pb?'L':'T');results.get(Number(b.roster_id)).push(pb>pa?'W':pb<pa?'L':'T');for(const [team,points] of [[ta,pa],[tb,pb]]){if(!top||points>top.points)top={team,points,week:w};if(!low||points<low.points)low={team,points,week:w}}}}
@@ -1034,7 +1048,7 @@ function renderPositions(el){
  el.querySelectorAll('[data-position-mode]').forEach(b=>b.addEventListener('click',()=>{state.positionMode=b.dataset.positionMode;renderPositions(el)}));
 }
 function playoffEstimate(t){const standings=sortedStandings(),sRank=standings.indexOf(t),rv=rosterValue(t,true)||rosterValue(t,false),max=Math.max(...state.teams.map(x=>rosterValue(x,true)||rosterValue(x,false)),1),strength=rv/max;const base=(1-sRank/Math.max(1,state.teams.length-1))*.58+strength*.42;return Math.max(3,Math.min(97,Math.round(base*100)))}
-function renderPlayoffs(el){const ranks=[...state.teams].map(t=>({...t,chance:playoffEstimate(t)})).sort((a,b)=>b.chance-a.chance);el.innerHTML=`<article class="card"><div class="card-head"><div class="card-title">Playoff Odds</div><div class="card-source">Lone Star estimate powered by standings + FantasyCalc redraft value</div></div><div class="card-body">${ranks.map((t,i)=>rankRow(i,t,`${t.chance}%`,t.chance>=75?'🔥 Strong position':t.chance<=20?'💀 On the ropes':'In the hunt')).join('')}<div style="padding:12px;color:var(--muted);font-size:11px">This is a Lone Star Dynasty projection, not an official FantasyCalc playoff-odds output.</div></div></article>`}
+function renderPlayoffs(el){const ranks=[...state.teams].map(t=>({...t,chance:playoffEstimate(t)})).sort((a,b)=>b.chance-a.chance);el.innerHTML=`<article class="card"><div class="card-head"><div class="card-title">Playoff Odds</div><div class="card-source">Lone Star estimate powered by standings + FantasyCalc redraft value</div></div><div class="card-body">${ranks.map((t,i)=>rankRow(i,t,`${t.chance}%`,t.chance>=75?'🔥 Strong position':t.chance<=20?'💀 On the ropes':'In Hunt')).join('')}<div style="padding:12px;color:var(--muted);font-size:11px">This is a Lone Star Dynasty projection, not an official FantasyCalc playoff-odds output.</div></div></article>`}
 function renderAllTime(el){
  el.innerHTML=`<article class="card clean-category-card"><div class="card-head clean-category-head"><div class="card-title">Head-to-Head History</div></div><div class="card-body"><div style="display:flex;gap:8px;flex-wrap:wrap;margin:8px 0 14px"><select id="h2hA" class="ghost-btn">${state.teams.map((t,i)=>`<option value="${i}">${esc(t.name)}</option>`).join('')}</select><select id="h2hB" class="ghost-btn">${state.teams.map((t,i)=>`<option value="${i}" ${i===1?'selected':''}>${esc(t.name)}</option>`).join('')}</select><button class="red-btn" id="calcH2H">Calculate</button></div><div id="h2hResult" class="empty">Choose two franchises to calculate their all-time series.</div></div></article><section class="section"><div class="section-head"><h2 class="section-title">League Records</h2><div class="section-kicker">2025 + current Sleeper history</div></div><div class="alltime-record-grid"><article class="card alltime-record-card"><div class="card-body"><div class="pulse-label">Best All-Time Record</div><div id="allTimeBestRecord" class="record-primary">Loading…</div><div id="allTimeBestRecordMeta" class="record-meta"></div></div></article><article class="card alltime-record-card"><div class="card-body"><div class="pulse-label">Highest Week</div><div id="allTimeHighestWeek" class="record-primary">Loading…</div><div id="allTimeHighestWeekMeta" class="record-meta"></div></div></article><article class="card alltime-record-card"><div class="card-body"><div class="pulse-label">Top Performer</div><div id="allTimeTopPerformer" class="record-primary">Loading…</div><div id="allTimeTopPerformerMeta" class="record-meta"></div></div></article><article class="card alltime-record-card"><div class="card-body"><div class="pulse-label">Most All-Time Points</div><div id="allTimeMostPoints" class="record-primary">Loading…</div><div id="allTimeMostPointsMeta" class="record-meta"></div></div></article><article class="card alltime-record-card"><div class="card-body"><div class="pulse-label">Longest Win Streak</div><div id="allTimeWinStreak" class="record-primary">Loading…</div><div id="allTimeWinStreakMeta" class="record-meta"></div></div></article><article class="card alltime-record-card"><div class="card-body"><div class="pulse-label">Longest Losing Streak</div><div id="allTimeLossStreak" class="record-primary">Loading…</div><div id="allTimeLossStreakMeta" class="record-meta"></div></div></article><article class="card alltime-record-card"><div class="card-body"><div class="pulse-label">Biggest Blowout</div><div id="allTimeBlowout" class="record-primary">Loading…</div><div id="allTimeBlowoutMeta" class="record-meta"></div></div></article><article class="card alltime-record-card"><div class="card-body"><div class="pulse-label">Closest Win</div><div id="allTimeClosest" class="record-primary">Loading…</div><div id="allTimeClosestMeta" class="record-meta"></div></div></article></div></section>`;
  $('#calcH2H').addEventListener('click',()=>calcHeadToHead(Number($('#h2hA').value),Number($('#h2hB').value)));
@@ -7540,7 +7554,7 @@ function v145StandingStatus(team){
  const p=team?playoffStatus(team):null;
  if(/eliminated/i.test(p?.text||''))return {text:'Eliminated',cls:'status-eliminated'};
  if(/clinched/i.test(p?.text||''))return {text:'Clinched',cls:'status-clinched'};
- return {text:'In the Hunt',cls:'status-hunt'};
+ return {text:'In Hunt',cls:'status-hunt'};
 }
 function v145CombineStandings(){
  const leagueBody=document.getElementById('leagueStandings'),divisionBody=document.getElementById('divisionStandings');
@@ -7586,9 +7600,25 @@ async function v145AnnotateDraftMovement(){
  box.querySelectorAll('.rank-row').forEach((row,i)=>{row.querySelector('.draft-movement-v144')?.remove();const team=current[i],old=before.get(Number(team?.roster?.roster_id));if(!team||!old)return;const delta=old-(i+1),move=delta>0?`▲ ${delta}`:delta<0?`▼ ${Math.abs(delta)}`:'—',label=delta?`${Math.abs(delta)} spot${Math.abs(delta)===1?'':'s'} ${delta>0?'up':'down'}`:'No change';row.querySelector('.stat')?.insertAdjacentHTML('beforeend',`<span class="draft-movement-v144 ${delta?'':'flat'}" title="${label}">${move}<small>vs last week</small></span>`)});
  const source=document.getElementById('orderCardSource');if(source)source.textContent='Projected from standings • Week-over-week movement';
 }
+let standingsMovementRequestV149=0;
+async function v149AnnotateStandingsMovement(){
+ const request=++standingsMovementRequestV149;if(Number(state.week||1)<=1)return;
+ const leagueBody=document.getElementById('leagueStandings'),divisionBody=document.getElementById('divisionStandings');
+ if(!leagueBody||!divisionBody)return;
+ const previousDraft=await v145PreviousDraftOrder();
+ if(request!==standingsMovementRequestV149||!previousDraft.length)return;
+ const previousLeague=[...previousDraft].reverse(),currentLeague=sortedStandings();
+ const beforeLeague=new Map(previousLeague.map((t,i)=>[Number(t.roster.roster_id),i+1]));
+ const add=(row,team,old,now)=>{row.querySelector('.standings-movement-v149')?.remove();if(!team||!old)return;const delta=old-now,label=delta?`${Math.abs(delta)} spot${Math.abs(delta)===1?'':'s'} ${delta>0?'up':'down'} since last week`:'No change since last week',move=delta>0?`▲ ${delta}`:delta<0?`▼ ${Math.abs(delta)}`:'—';row.querySelector('.stat')?.insertAdjacentHTML('beforeend',`<span class="standings-movement-v149 ${delta>0?'up':delta<0?'down':'flat'}" title="${label}" aria-label="${label}">${move}<small>vs last week</small></span>`)};
+ leagueBody.querySelectorAll('.rank-row').forEach((row,i)=>add(row,currentLeague[i],beforeLeague.get(Number(currentLeague[i]?.roster?.roster_id)),i+1));
+ divisionBody.querySelectorAll('.division').forEach(div=>{const rows=[...div.querySelectorAll('.rank-row')],teams=rows.map(row=>state.teams.find(t=>norm(t.name)===norm(row.querySelector('.team-line strong')?.textContent||''))).filter(Boolean),divisionId=Number(teams[0]?.roster?.settings?.division||0),previousDivision=previousLeague.filter(t=>Number(t.roster?.settings?.division||0)===divisionId),beforeDivision=new Map(previousDivision.map((t,i)=>[Number(t.roster.roster_id),i+1]));rows.forEach((row,i)=>{const team=teams[i];add(row,team,beforeDivision.get(Number(team?.roster?.roster_id)),i+1)})});
+}
+function v149OpenFranchise(row){const id=Number(row?.dataset?.franchiseRoster||0);if(id)renderTeamByRoster(id)}
+document.addEventListener('click',e=>{const row=e.target.closest('[data-franchise-roster]');if(row)v149OpenFranchise(row)});
+document.addEventListener('keydown',e=>{const row=e.target.closest('[data-franchise-roster]');if(row&&(e.key==='Enter'||e.key===' ')){e.preventDefault();v149OpenFranchise(row)}});
 if(typeof renderOrderV20==='function'){const baseOrderV145=renderOrderV20;renderOrderV20=function(){baseOrderV145();v145AnnotateDraftMovement()}}
 const baseStandingsV145=renderStandings;
-renderStandings=function(){baseStandingsV145();v145CombineStandings();v145AnnotateDraftMovement()};
+renderStandings=function(){baseStandingsV145();v145CombineStandings();v145AnnotateDraftMovement();v149AnnotateStandingsMovement()};
 
 bootstrap();
 })();</script>
@@ -7596,7 +7626,7 @@ bootstrap();
 <script>
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
-    navigator.serviceWorker.register('./service-worker.js?v=147', {updateViaCache:'none'}).then(reg => reg.update()).catch(() => {});
+    navigator.serviceWorker.register('./service-worker.js?v=149', {updateViaCache:'none'}).then(reg => reg.update()).catch(() => {});
   });
 }
 </script>
@@ -8050,14 +8080,14 @@ if ('serviceWorker' in navigator) {
   }
 
   function statusV82(t,divisionTeams){
-    if(preseasonV82())return {text:'In the Hunt',cls:''};
+    if(preseasonV82())return {text:'In Hunt',cls:''};
     const p=typeof playoffStatus==='function'?playoffStatus(t):null;
     if(/eliminated/i.test(p?.text||''))return {text:'Eliminated',cls:'eliminated'};
     if(/clinched/i.test(p?.text||'')){
       const leader=divisionTeams?.[0] && Number(divisionTeams[0].roster.roster_id)===Number(t.roster.roster_id);
       return {text:leader?'Clinched Division':'Clinched Playoffs',cls:'clinched'};
     }
-    return {text:'In the Hunt',cls:''};
+    return {text:'In Hunt',cls:''};
   }
 
   function standingRowV82(t,i,divisionTeams){
@@ -8103,7 +8133,7 @@ if ('serviceWorker' in navigator) {
       leagueBody.innerHTML=PRESEASON_ORDER_V82.map((name,i)=>`<div class="v82-standing-row">
         <div class="v82-rank">${i+1}</div>
         <img class="v82-team-avatar" src="lone-star-logo.jpg" alt="">
-        <div class="v82-team-wrap"><div class="v82-team-line"><span class="v82-team-name">${esc(name)}</span><span class="v82-hunt">In the Hunt</span></div></div>
+        <div class="v82-team-wrap"><div class="v82-team-line"><span class="v82-team-name">${esc(name)}</span><span class="v82-hunt">In Hunt</span></div></div>
         <div class="v82-record">0-0</div>
       </div>`).join('');
       return;
@@ -8475,6 +8505,11 @@ if ('serviceWorker' in navigator) {
 .draft-movement-v144{display:flex;align-items:center;justify-content:flex-end;gap:3px;margin-top:4px;color:#f0bd55;font-size:11px;font-weight:1000;line-height:1;white-space:nowrap}
 .draft-movement-v144.flat{color:rgba(240,189,85,.62)}
 .draft-movement-v144 small{font-size:7px;letter-spacing:.45px;text-transform:uppercase;color:var(--muted)}
+.franchise-link-v149{cursor:pointer;transition:background .16s ease,transform .16s ease}
+.franchise-link-v149:hover,.franchise-link-v149:focus{background:rgba(240,189,85,.07);outline:1px solid rgba(240,189,85,.36);outline-offset:-1px}
+.standings-movement-v149{display:flex;align-items:center;justify-content:flex-end;gap:3px;margin-top:4px;font-size:11px;font-weight:1000;line-height:1;white-space:nowrap}
+.standings-movement-v149.up{color:#58d68d}.standings-movement-v149.down{color:#ff625d}.standings-movement-v149.flat{color:var(--muted)}
+.standings-movement-v149 small{font-size:7px;letter-spacing:.45px;text-transform:uppercase;color:var(--muted)}
 @media(max-width:1050px){.standings-grid-v144{grid-template-columns:1fr 1fr}}
 @media(max-width:760px){.standings-grid-v144{grid-template-columns:1fr}}
 </style>
