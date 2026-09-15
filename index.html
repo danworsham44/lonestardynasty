@@ -821,9 +821,9 @@ main{padding-bottom:18px!important}.footer{margin-top:22px!important;padding:14p
 <div class="pulse awards-grid-v33" id="pulse"></div>
 </details>
 </section>
-  <section class="section"><div class="section-head"><h2 class="section-title">Standings</h2><div class="section-kicker"><span class="status-dot" id="liveDot"></span><span id="liveText">Connecting to live league data</span><span class="sync-status" id="syncStatus">Last synced: waiting…</span></div></div><div class="grid4">
+  <section class="section"><div class="section-head"><h2 class="section-title">Standings</h2><div class="section-kicker"><span class="status-dot" id="liveDot"></span><span id="liveText">Connecting to live league data</span><span class="sync-status" id="syncStatus">Last synced: waiting…</span></div></div><div class="grid4 standings-grid-v144">
     <article class="card"><div class="card-head"><div class="card-title">League Standings</div><div class="card-source">Sleeper</div></div><div class="card-body" id="leagueStandings"></div></article>
-    <article class="card"><div class="card-head"><div class="card-title">Division Standings</div><div class="card-source">Sleeper</div></div><div class="card-body" id="divisionStandings"></div></article>
+    <article class="card" style="display:none" aria-hidden="true"><div class="card-head"><div class="card-title">Division Standings</div><div class="card-source">Sleeper</div></div><div class="card-body" id="divisionStandings"></div></article>
     <article class="card"><div class="card-head"><div><div class="card-title">Power Rankings</div><div class="card-source">FantasyCalc</div></div><div class="power-toggle" role="group" aria-label="Power rankings format"><button type="button" class="power-btn active" data-power="dynasty">Dynasty</button><button type="button" class="power-btn" data-power="redraft">Redraft</button></div></div><div class="card-body" id="powerRankings"></div></article>
     <article class="card"><div class="card-head"><div><div class="card-title" id="orderCardTitle">2027 Draft Order</div><div class="card-source" id="orderCardSource">Projected from standings</div></div><div class="order-toggle"><button type="button" class="order-btn active" data-order-mode="draft">Draft</button><button type="button" class="order-btn" data-order-mode="waiver">Waiver</button></div></div><div class="card-body" id="draftOrder"></div></article>
   </div></section>
@@ -3980,74 +3980,6 @@ renderToolMain=function(id){
   if(id==='startsit')return renderStartSitV46(el);
   return _renderToolMainV46Base(id);
 };
-
-
-/* V50: 1.01 franchise-page easter egg */
-const v50style=document.createElement('style');
-v50style.textContent=`
-#oneOhOneRoastV50{position:fixed;inset:0;z-index:999999;pointer-events:none;display:flex;align-items:center;justify-content:center;overflow:hidden;background:rgba(0,0,0,.28);animation:v50Fade 2.25s ease forwards}
-#oneOhOneRoastV50 .roast{font-family:Impact,Haettenschweiler,sans-serif;font-size:clamp(58px,16vw,150px);line-height:.9;text-align:center;text-transform:uppercase;color:#f4ead5;-webkit-text-stroke:2px #111;text-shadow:7px 7px 0 #c82d2d,12px 12px 0 rgba(0,0,0,.5);animation:v50Slam 2.15s cubic-bezier(.2,.9,.2,1) forwards}
-#oneOhOneRoastV50 small{display:block;margin-top:16px;font-family:Arial,sans-serif;font-size:clamp(11px,3vw,20px);letter-spacing:4px;-webkit-text-stroke:0;text-shadow:none;color:#f0bd55}
-@keyframes v50Slam{0%{transform:translateX(-120vw) rotate(-18deg) scale(.35);opacity:0}18%{transform:translateX(0) rotate(5deg) scale(1.18);opacity:1}30%{transform:rotate(-5deg) scale(.96)}42%,72%{transform:rotate(-3deg) scale(1)}100%{transform:translateX(120vw) rotate(15deg) scale(.8);opacity:0}}
-@keyframes v50Fade{0%,78%{background:rgba(0,0,0,.28)}100%{background:rgba(0,0,0,0)}}`;
-document.head.appendChild(v50style);
-function v50Roast101(){
- const old=document.getElementById('oneOhOneRoastV50');if(old)old.remove();
- const el=document.createElement('div');el.id='oneOhOneRoastV50';
- el.innerHTML=`<div class="roast">YOU SUCK<small>WELCOME TO 1.01</small></div>`;
- document.body.appendChild(el);setTimeout(()=>el.remove(),2350);
-}
-let v50Last101=false;
-const v50observer=new MutationObserver(()=>{
- try{
-  const headings=[...document.querySelectorAll('h1,h2,h3')].map(x=>(x.textContent||'').trim());
-  const on101=headings.some(t=>t==='1.01');
-  if(on101&&!v50Last101){v50Last101=true;setTimeout(v50Roast101,180)}
-  else if(!on101){v50Last101=false}
- }catch{}
-});
-v50observer.observe(document.body,{childList:true,subtree:true});
-
-
-/* V51: "YOU SUCK" Easter egg follows Haunted Hitman's current-week opponent. */
-async function v51HauntedOpponentName(){
-  try{
-    const week = typeof fantasyWeekV45==='function' ? fantasyWeekV45() : Math.max(1,Number(state.nfl?.week||1));
-    const hh = state.teams.find(t=>norm(t.name)==='haunted hitman');
-    if(!hh) return null;
-    const ms = await getJSON(`https://api.sleeper.app/v1/league/${LEAGUE_ID}/matchups/${week}`);
-    const mine = ms.find(m=>Number(m.roster_id)===Number(hh.roster.roster_id));
-    if(!mine || mine.matchup_id==null) return null;
-    const opp = ms.find(m=>m!==mine && m.matchup_id===mine.matchup_id);
-    if(!opp) return null;
-    const team = teamByRoster(opp.roster_id);
-    return team?.name || null;
-  }catch{return null}
-}
-let v51CurrentRoastTeam=null, v51LastTriggeredTeam=null;
-async function v51RefreshRoastTarget(){
-  const opp=await v51HauntedOpponentName();
-  if(opp) v51CurrentRoastTeam=opp;
-}
-v51RefreshRoastTarget();
-setInterval(v51RefreshRoastTarget,60000);
-
-const v51observer=new MutationObserver(()=>{
-  try{
-    if(!v51CurrentRoastTeam)return;
-    const title=document.querySelector('#teamContent .franchise-title')?.textContent?.trim()
-      || [...document.querySelectorAll('h1,h2,h3')].map(x=>(x.textContent||'').trim()).find(t=>norm(t)===norm(v51CurrentRoastTeam));
-    const onTarget=!!title && norm(title)===norm(v51CurrentRoastTeam);
-    if(onTarget && v51LastTriggeredTeam!==v51CurrentRoastTeam){
-      v51LastTriggeredTeam=v51CurrentRoastTeam;
-      setTimeout(v50Roast101,180);
-    }else if(!onTarget){
-      v51LastTriggeredTeam=null;
-    }
-  }catch{}
-});
-v51observer.observe(document.body,{childList:true,subtree:true});
-try{v50observer.disconnect()}catch{}
 
 
 /* V57 — production storyline layout from V56, built on V51.
@@ -7963,7 +7895,7 @@ if ('serviceWorker' in navigator) {
     "Let me see them TD's","Miggy's Wrench Mafia",'CeeDee Nutz',
     '1.01','Paper Chaser','DYNASTYdeezzzNUTZZZ'
   ];
-  let standingsViewV82='league';
+  let standingsViewV82='division';
 
   function preseasonV82(){
     return Array.isArray(state?.teams) && state.teams.length &&
@@ -8044,7 +7976,7 @@ if ('serviceWorker' in navigator) {
     if(!toggle && head){
       toggle=document.createElement('div');
       toggle.className='standings-toggle-v82';
-      toggle.innerHTML='<button type="button" class="active" data-v82-view="league">League</button><button type="button" data-v82-view="division">Divisions</button>';
+      toggle.innerHTML='<button type="button" class="active" data-v82-view="division">Divisions</button><button type="button" data-v82-view="league">League</button>';
       head.appendChild(toggle);
     }
     if(source)source.textContent='Sleeper • Playoff Race';
@@ -8418,6 +8350,113 @@ if ('serviceWorker' in navigator) {
   }else{
     setTimeout(annotateMainDraftV85,0);
   }
+})();
+</script>
+<style id="v144-standings-draft-movement-style">
+.standings-grid-v144{grid-template-columns:repeat(3,minmax(0,1fr))}
+.draft-movement-v144{display:flex;align-items:center;justify-content:flex-end;gap:3px;margin-top:4px;color:#f0bd55;font-size:11px;font-weight:1000;line-height:1;white-space:nowrap}
+.draft-movement-v144.flat{color:rgba(240,189,85,.62)}
+.draft-movement-v144 small{font-size:7px;letter-spacing:.45px;text-transform:uppercase;color:var(--muted)}
+@media(max-width:1050px){.standings-grid-v144{grid-template-columns:1fr 1fr}}
+@media(max-width:760px){.standings-grid-v144{grid-template-columns:1fr}}
+</style>
+<script id="v144-standings-draft-movement-js">
+(function(){
+  const PRESEASON_LEAGUE_ORDER_V144=[
+    'DakstreetBoys','DemBoyz','Haunted Hitman','Arrowhead Avengers',
+    "Let me see them TD's","Miggy's Wrench Mafia",'CeeDee Nutz',
+    '1.01','Paper Chaser','DYNASTYdeezzzNUTZZZ'
+  ];
+  let movementRequestV144=0;
+  let movementCacheV144={key:'',promise:null};
+
+  function preseasonDraftOrderV144(){
+    const byName=new Map(state.teams.map(t=>[norm(t.name),t]));
+    const league=PRESEASON_LEAGUE_ORDER_V144.map(name=>byName.get(norm(name))).filter(Boolean);
+    const used=new Set(league.map(t=>Number(t.roster?.roster_id)));
+    state.teams.forEach(t=>{if(!used.has(Number(t.roster?.roster_id)))league.push(t)});
+    return league.reverse();
+  }
+
+  async function draftOrderThroughWeekV144(lastWeek){
+    if(lastWeek<=0)return preseasonDraftOrderV144();
+    const leagueId=state.league?.league_id||LEAGUE_ID;
+    const batches=await Promise.all(
+      Array.from({length:lastWeek},(_,i)=>getJSON(`https://api.sleeper.app/v1/league/${leagueId}/matchups/${i+1}`))
+    );
+    const records=new Map(state.teams.map(t=>[Number(t.roster?.roster_id),{wins:0,losses:0,ties:0,pf:0}]));
+    batches.forEach(matchups=>{
+      const groups=new Map();
+      (matchups||[]).forEach(m=>{
+        const rid=Number(m.roster_id),r=records.get(rid);
+        if(r)r.pf+=Number(m.points||0);
+        if(m.matchup_id==null)return;
+        const key=String(m.matchup_id);
+        if(!groups.has(key))groups.set(key,[]);
+        groups.get(key).push(m);
+      });
+      groups.forEach(game=>{
+        if(game.length!==2)return;
+        const a=records.get(Number(game[0].roster_id)),b=records.get(Number(game[1].roster_id));
+        if(!a||!b)return;
+        const ap=Number(game[0].points||0),bp=Number(game[1].points||0);
+        if(ap>bp){a.wins++;b.losses++}
+        else if(bp>ap){b.wins++;a.losses++}
+        else{a.ties++;b.ties++}
+      });
+    });
+    const preseasonRank=new Map(PRESEASON_LEAGUE_ORDER_V144.map((name,i)=>[norm(name),i]));
+    const league=[...state.teams].sort((a,b)=>{
+      const ar=records.get(Number(a.roster?.roster_id))||{},br=records.get(Number(b.roster?.roster_id))||{};
+      return Number(br.wins||0)-Number(ar.wins||0)
+        || Number(ar.losses||0)-Number(br.losses||0)
+        || Number(br.pf||0)-Number(ar.pf||0)
+        || Number(preseasonRank.get(norm(a.name))??999)-Number(preseasonRank.get(norm(b.name))??999);
+    });
+    return league.reverse();
+  }
+
+  function previousDraftOrderV144(){
+    const currentWeek=Math.max(1,Number(state.week||state.nfl?.week||1));
+    const previousCompletedWeek=Math.max(0,currentWeek-2);
+    const key=`${state.league?.league_id||LEAGUE_ID}:${previousCompletedWeek}:${state.teams.map(t=>t.roster?.roster_id).join(',')}`;
+    if(movementCacheV144.key!==key){
+      movementCacheV144={key,promise:draftOrderThroughWeekV144(previousCompletedWeek).catch(()=>[])};
+    }
+    return movementCacheV144.promise;
+  }
+
+  async function annotateDraftMovementV144(){
+    const request=++movementRequestV144;
+    if(state.orderMode==='waiver'||Number(state.week||1)<=1)return;
+    const box=document.getElementById('draftOrder');
+    if(!box||!state.teams?.length)return;
+    const previous=await previousDraftOrderV144();
+    if(request!==movementRequestV144||state.orderMode==='waiver'||!box.isConnected||!previous.length)return;
+    const previousPositions=new Map(previous.map((t,i)=>[Number(t.roster?.roster_id),i+1]));
+    const current=[...sortedStandings()].reverse();
+    box.querySelectorAll('.rank-row').forEach((row,i)=>{
+      row.querySelector('.draft-movement-v144')?.remove();
+      const team=current[i],before=previousPositions.get(Number(team?.roster?.roster_id));
+      if(!team||!before)return;
+      const now=i+1,delta=before-now;
+      const movement=delta>0?`▲ ${delta}`:delta<0?`▼ ${Math.abs(delta)}`:'—';
+      const label=delta===0?'No change':`${Math.abs(delta)} spot${Math.abs(delta)===1?'':'s'} ${delta>0?'up':'down'}`;
+      const stat=row.querySelector('.stat');
+      if(stat)stat.insertAdjacentHTML('beforeend',`<span class="draft-movement-v144 ${delta===0?'flat':''}" title="${label}" aria-label="${label}">${movement}<small>vs last week</small></span>`);
+    });
+    const source=document.getElementById('orderCardSource');
+    if(source)source.textContent='Projected from standings • Week-over-week movement';
+  }
+
+  if(typeof renderOrderV20==='function'){
+    const baseOrderV144=renderOrderV20;
+    renderOrderV20=function(){baseOrderV144();annotateDraftMovementV144()};
+  }
+  const baseStandingsV144=renderStandings;
+  renderStandings=function(){baseStandingsV144();annotateDraftMovementV144()};
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>setTimeout(annotateDraftMovementV144,0),{once:true});
+  else setTimeout(annotateDraftMovementV144,0);
 })();
 </script>
 </body>
