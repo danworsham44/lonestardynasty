@@ -13,7 +13,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
 <meta name="mobile-web-app-capable" content="yes" />
 <meta name="application-name" content="Lone Star Dynasty" />
-<meta name="lsd-build" content="v151" />
+<meta name="lsd-build" content="v152" />
 <title>Lone Star Dynasty</title>
 <style>
 :root{--ink:#07101a;--ink2:#0d1824;--panel:rgba(10,18,28,.91);--paper:#efe4cc;--muted:#aeb7c2;--red:#c83632;--red2:#8d201f;--line:rgba(239,228,204,.18);--gold:#c49a47;--green:#64b76d;--shadow:0 18px 50px rgba(0,0,0,.34)}
@@ -4020,6 +4020,9 @@ v57css.textContent=`
 .v57startsit h2{margin:0;font-family:Impact,Haettenschweiler,sans-serif;font-size:29px;color:var(--cream);text-transform:uppercase}
 .v57startsit p{color:var(--muted);font-size:11px;line-height:1.55}
 .v57startsit .status{display:inline-block;margin-top:9px;padding:5px 8px;border:1px solid rgba(240,189,85,.38);color:#f0bd55;font-size:8px;font-weight:1000;text-transform:uppercase;letter-spacing:.7px}
+.v57story.belt-story-v152 .headline{font-size:22px;color:#f4dfac;text-shadow:0 2px 18px rgba(240,189,85,.17)}
+.v152-story-tags{display:flex;gap:6px;flex-wrap:wrap;margin:0 0 11px}.v152-story-tags span{padding:5px 8px;border:1px solid rgba(240,189,85,.42);background:rgba(240,189,85,.07);color:#f0bd55;font-size:8px;font-weight:1000;letter-spacing:.8px;text-transform:uppercase}
+.belt-story-v152 h4{border-left:3px solid rgba(200,54,50,.75);padding-left:8px}.belt-story-v152 .v57score{border-color:rgba(240,189,85,.34);background:linear-gradient(90deg,rgba(200,54,50,.06),rgba(240,189,85,.05),rgba(200,54,50,.06))}
 `;
 document.head.appendChild(v57css);
 
@@ -4028,58 +4031,60 @@ function v57PlayerProjection(id){
   try{if(typeof currentProjectionV27==='function')v=Number(currentProjectionV27(id)||0)}catch{}
   return Number.isFinite(v)&&v>0?v:0;
 }
-function v57ProjectedLineup(team){
-  const ids=(team?.roster?.players||[]).map(String);
-  const rows=ids.map(id=>{
-    const p=playerInfoV18(id),pos=String(p.position||'').toUpperCase();
-    const red=playerPosRankV18(id,pos,true)||9999;
-    let proj=v57PlayerProjection(id);
-    if(!proj){
-      const base={QB:22,RB:16,WR:15.5,TE:11}[pos]||8;
-      const slope={QB:.34,RB:.28,WR:.25,TE:.20}[pos]||.12;
-      const r=red===9999?30:red;
-      proj=Math.max(3,base-(r-1)*slope);
-    }
-    return {id,p,pos,red,proj}
-  }).filter(x=>['QB','RB','WR','TE'].includes(x.pos));
-  const starters=[],used={QB:0,RB:0,WR:0,TE:0};
-  const need={QB:1,RB:2,WR:3,TE:1};
-  rows.sort((a,b)=>b.proj-a.proj);
-  for(const x of rows){
-    if(used[x.pos]<(need[x.pos]||0)){used[x.pos]++;starters.push(x)}
-  }
-  rows.filter(x=>['RB','WR','TE'].includes(x.pos)&&!starters.includes(x)).slice(0,3).forEach(x=>starters.push(x));
-  return {total:starters.reduce((s,x)=>s+x.proj,0),starters};
+let v152ScheduleCache={key:'',promise:null};
+async function v152WeekSchedule(week){
+ const season=String(state.league?.season||state.nfl?.season||new Date().getFullYear()),key=`${season}-${week}`;
+ if(v152ScheduleCache.key===key&&v152ScheduleCache.promise)return v152ScheduleCache.promise;
+ v152ScheduleCache={key,promise:(async()=>{const games=await getJSON(`https://api.sleeper.app/scores/nfl/regular/${season}/${week}`).catch(()=>[]),map=new Map();(games||[]).forEach(g=>{const m=g?.metadata||{},home=String(m.home_team||g.home_team||'').toUpperCase(),away=String(m.away_team||g.away_team||'').toUpperCase(),raw=m.date_time||g.date_time||m.date||g.date;if(!home||!away||!raw)return;const kickoff=new Date(raw),day=new Intl.DateTimeFormat('en-US',{weekday:'long',timeZone:'America/Chicago'}).format(kickoff),time=new Intl.DateTimeFormat('en-US',{weekday:'short',hour:'numeric',minute:'2-digit',timeZone:'America/Chicago'}).format(kickoff);map.set(home,{day,time,opponent:away});map.set(away,{day,time,opponent:home})});return map})()};
+ return v152ScheduleCache.promise;
 }
+function v57ProjectedLineup(team,schedule=new Map()){
+ const matchup=state.matchups.find(m=>Number(m.roster_id)===Number(team?.roster?.roster_id)),ids=((matchup?.starters?.length?matchup.starters:team?.roster?.starters)||[]).map(String).filter(id=>id&&id!=='0');
+ const starters=ids.map(id=>{let p=playerInfoV18(id);if(/^([A-Z]{2,3})$/.test(id)&&/^Player /.test(p.name))p={...p,name:`${id} D/ST`,position:'DEF',nflTeam:id};const pos=String(p.position||'').toUpperCase(),proj=sleeperProjectionValue(state.projections.get(id)),game=schedule.get(String(p.nflTeam||'').toUpperCase())||null;return {id,p,pos,proj:Number.isFinite(proj)?proj:0,game}});
+ const exact=matchup?sleeperTeamProjection(matchup):NaN,total=Number.isFinite(exact)?exact:starters.reduce((s,x)=>s+x.proj,0);
+ return {total,starters,matchup};
+}
+function v152PlayerList(rows){return rows.map(x=>`${x.p.name}${x.game?` (${x.p.nflTeam} vs ${x.game.opponent} • ${x.game.time} CT)`:''}`).join(', ')}
+function v152InjuryRows(lineup){return lineup.starters.filter(x=>{const s=String(x.p.injuryStatus||'').toUpperCase();return s&&!['ACTIVE','HEALTHY','NONE','NA','N/A'].includes(s)})}
 async function v57RenderStory(){
  const body=document.getElementById('motwStoryBodyV35'),details=document.getElementById('motwStoryV35');
  if(!body||!state?.featured?.length)return false;
  const a=state.featured[0],b=state.featured[1];if(!a||!b)return false;
- const key=`${a.name}|${b.name}|${typeof fantasyWeekV45==='function'?fantasyWeekV45():1}`;
+ const wk=typeof fantasyWeekV45==='function'?fantasyWeekV45():Math.max(1,Number(state.nfl?.week||1)),key=`${a.name}|${b.name}|${wk}|${state.history.length}|${state.projections.size}|${state.players.size}`;
  if(body.dataset.v57key===key)return true;
- const ap=v57ProjectedLineup(a),bp=v57ProjectedLineup(b);
+ const schedule=await v152WeekSchedule(wk),ap=v57ProjectedLineup(a,schedule),bp=v57ProjectedLineup(b,schedule);
  const fav=ap.total>=bp.total?a:b,dog=fav===a?b:a,fp=fav===a?ap:bp,op=fav===a?bp:ap;
  let h=null;try{h=await headToHeadData(a,b)}catch{}
- const series=h?.meetings?`${a.name} enters this matchup ${h.wins}-${h.losses}${h.ties?'-'+h.ties:''} against ${b.name} in the recorded series.`:'The available league history makes this a fresh chapter between these franchises.';
+ const dakCee=[norm(a.name),norm(b.name)].sort().join('|')===['ceedee nutz','dakstreetboys'].sort().join('|');
+ if(dakCee&&(!h||Number(h.meetings)<2)){const dakIsA=norm(a.name)==='dakstreetboys';h={wins:dakIsA?2:0,losses:dakIsA?0:2,ties:0,meetings:2,games:[]}}
+ let series='The available league history makes this a fresh chapter between these franchises.';
+ if(dakCee)series='DakstreetBoys beat CeeDee Nutz twice in 2025. CeeDee Nutz has never beaten DakstreetBoys — not once.';
+ else if(h?.meetings){const unbeaten=h.wins===h.meetings?a:h.losses===h.meetings?b:null;series=unbeaten?`${unbeaten.name} owns a perfect ${h.meetings}-0 record in this series. The other side is still hunting for its first answer.`:`${a.name} carries a ${h.wins}-${h.losses}${h.ties?'-'+h.ties:''} record against ${b.name} into this matchup.`}
  const aStars=ap.starters.slice().sort((x,y)=>y.proj-x.proj).slice(0,3),bStars=bp.starters.slice().sort((x,y)=>y.proj-x.proj).slice(0,3);
- const wk=typeof fantasyWeekV45==='function'?fantasyWeekV45():Math.max(1,Number(state.nfl?.week||1));
- const gap=Math.abs(fp.total-op.total),trash=gap>=10
-  ? `${fav.name} has enough of an edge to start talking reckless. If ${dog.name} pulls the upset, the favorite may want to mute the league chat before the screenshots arrive.`
-  : `The projections barely separate these teams, which means both owners have permission to talk trash — and absolutely no excuse ready if their lineup folds.`;
+ let belt=null;try{belt=await v34BeltData()}catch{}const beltHolder=[a,b].find(t=>norm(t.name)===norm(belt?.holder||'')),challenger=beltHolder?(beltHolder===a?b:a):null,champ=[a,b].find(t=>norm(t.name)==='dakstreetboys');
+ const thA=ap.starters.filter(x=>x.game?.day==='Thursday'),thB=bp.starters.filter(x=>x.game?.day==='Thursday'),monA=ap.starters.filter(x=>x.game?.day==='Monday'),monB=bp.starters.filter(x=>x.game?.day==='Monday'),injA=v152InjuryRows(ap),injB=v152InjuryRows(bp);
+ const thursday=(thA.length||thB.length)?`${thA.length?`${a.name} can throw Thursday's first punch with ${v152PlayerList(thA)}.`:''} ${thB.length?`${b.name} answers Thursday with ${v152PlayerList(thB)}.`:''}`.trim():'Neither side has a Thursday starter, so the belt fight waits until Sunday.';
+ const monday=(monA.length||monB.length)?`${monA.length?`${a.name} holds Monday-night leverage with ${v152PlayerList(monA)}.`:''} ${monB.length?`${b.name} holds Monday-night leverage with ${v152PlayerList(monB)}.`:''} If the score is close Sunday night, that is where the miracle—or the heartbreak—lives.`.trim():'Neither lineup currently owns a Monday-night rescue plan. If somebody is buried after Sunday, there may be nobody left to save them.';
+ const injuries=(injA.length||injB.length)?`${injA.length?`${a.name} must monitor ${injA.map(x=>`${x.p.name} (${x.p.injuryStatus})`).join(', ')}.`:''} ${injB.length?`${b.name} must monitor ${injB.map(x=>`${x.p.name} (${x.p.injuryStatus})`).join(', ')}.`:''}`.trim():'Both starting lineups currently avoid a major Sleeper injury designation, but Sunday inactive reports still get the final word.';
+ const gap=Math.abs(fp.total-op.total),trash=dakCee?`${b.name==='CeeDee Nutz'?b.owner:a.owner} has a chance to end the “never beat DakstreetBoys” jokes. ${norm(a.name)==='dakstreetboys'?a.owner:b.owner} has two wins, the championship and the belt—the kind of receipt collection that gets unbearable if it reaches three.`:beltHolder?`${challenger.owner} is not chasing an ordinary win; ${challenger.owner} can take the belt off ${beltHolder.owner}. ${beltHolder.owner} gets the jokes if the defense holds. The league gets screenshots forever if it does not.`:gap>=10?`${fav.name} has enough of an edge to talk reckless. If ${dog.name} pulls the upset, the favorite may want to mute the group chat before the screenshots arrive.`:`The projection is close enough for both owners to talk—and close enough that only one of them will enjoy rereading those messages Monday.`;
+ const headline=dakCee?'The Champ, the Belt and CeeDee Nutz’s Shot at History':beltHolder?`${beltHolder.name} Puts the Belt on the Line`:`${a.name} vs. ${b.name} — this week’s Lone Star spotlight`;
+ const stakes=[champ?`${champ.name} enters as the reigning 2025 Lone Star champion.`:'',beltHolder?`${beltHolder.name} is defending the Lone Star Belt against ${challenger.name}. The winner leaves with the belt.`:'',dakCee?'CeeDee Nutz is trying to do something the franchise has never done: beat DakstreetBoys.':''].filter(Boolean).join(' ');
  body.dataset.v57key=key;
- body.innerHTML=`<div class="v57story">
-  <div class="eyebrow">Wednesday Update • Week ${wk}</div>
-  <div class="headline">${esc(a.name)} vs. ${esc(b.name)} — this week's Lone Star spotlight</div>
-  <div class="v57score"><div><strong>${esc(a.name)}</strong><b>${ap.total.toFixed(1)}</b><span>Projected lineup</span></div><div style="font-family:Impact,sans-serif;color:#f0bd55">VS</div><div><strong>${esc(b.name)}</strong><b>${bp.total.toFixed(1)}</b><span>Projected lineup</span></div></div>
-  <h4>The Stakes</h4><p>This featured matchup puts two franchises under the brightest league spotlight of Week ${wk}. The result affects the standings race, division positioning and the head-to-head history — but more importantly, somebody gets bragging rights and somebody gets dragged in the group chat.</p>
-  <h4>Projection Edge</h4><p>Using the same player-level projection logic intended for the Start/Sit engine, ${esc(fav.name)} carries the early model edge at ${fp.total.toFixed(1)} to ${op.total.toFixed(1)}. That gap is close enough that one ceiling game can completely rewrite the matchup.</p>
+ body.innerHTML=`<div class="v57story ${beltHolder?'belt-story-v152':''}">
+  <div class="eyebrow">Lone Star Matchup File • Week ${wk}</div>
+  <div class="headline">${esc(headline)}</div>
+  <div class="v152-story-tags">${champ?'<span>2025 Champion</span>':''}${beltHolder?'<span>🏆 Belt Defense</span>':''}${dakCee?'<span>DakstreetBoys leads 2–0</span>':''}</div>
+  <div class="v57score"><div><strong>${esc(a.name)}</strong><b>${ap.total.toFixed(2)}</b><span>Sleeper starting lineup</span></div><div style="font-family:Impact,sans-serif;color:#f0bd55">VS</div><div><strong>${esc(b.name)}</strong><b>${bp.total.toFixed(2)}</b><span>Sleeper starting lineup</span></div></div>
+  <h4>The Stakes</h4><p>${esc(stakes||`Week ${wk} puts two franchises under the Lone Star spotlight with standings position and bragging rights on the line.`)}</p>
+  <h4>Projection Edge</h4><p>The same full Sleeper starting-lineup calculation used in the Tale of the Tape—including kicker and defense—gives ${esc(fav.name)} a ${fp.total.toFixed(2)} to ${op.total.toFixed(2)} edge. The margin is ${gap.toFixed(2)} points: close enough for one busted coverage, goal-line carry or defensive touchdown to flip the whole script.</p>
   <h4>${esc(a.name)} — Players Driving the Model</h4><p>${aStars.map(x=>`${esc(x.p.name)} (${x.proj.toFixed(1)})`).join(', ')} currently provide the biggest projected contributions on the ${esc(a.name)} side.</p>
   <h4>${esc(b.name)} — Players Driving the Model</h4><p>${bStars.map(x=>`${esc(x.p.name)} (${x.proj.toFixed(1)})`).join(', ')} headline the projection for ${esc(b.name)}.</p>
-  <h4>Series & Pressure</h4><p>${esc(series)} Every featured result adds another entry to the rivalry ledger, which makes the matchup increasingly meaningful as the league history grows.</p>
+  <h4>Series Receipts</h4><p>${esc(series)}</p>
   <h4>Trash Talk Forecast</h4><p>${esc(trash)}</p>
-  <h4>Where It Swings</h4><p>The model can identify a favorite, but the dangerous part is lineup variance. A flex player or secondary starter beating projection by 8–12 points can erase the entire expected margin. Those last lineup decisions are where the week can turn.</p>
-  <h4>What To Watch</h4><p>Watch the early scoring for separation. If one side builds a lead before the late-window stars take the field, the pressure shifts onto the opponent's premium players. If it stays close into Sunday night, this becomes exactly the kind of featured matchup that can come down to one final possession.</p>
-  <h4>Storyline Outlook</h4><p>${esc(fav.name)} gets the model's first nod, but projections do not win fantasy matchups and nobody gets a trophy for looking good on Wednesday. The actual performances decide which franchise owns the week's headline — and which owner spends Monday explaining what went wrong.</p>
+  <h4>Thursday First Punch</h4><p>${esc(thursday)}</p>
+  <h4>Injury Watch</h4><p>${esc(injuries)}</p>
+  <h4>Monday-Night Miracle</h4><p>${esc(monday)}</p>
+  <h4>Final Word</h4><p>${beltHolder?`${esc(beltHolder.name)} has the championship-era swagger and the belt. ${esc(challenger.name)} has the chance to take both the headline and the hardware. By Tuesday, one side gets the gold and the other gets the group-chat autopsy.`:`${esc(fav.name)} gets the projection nod, but the actual performances decide who owns the headline and who spends Tuesday explaining what went wrong.`}</p>
   <div class="v57note"><b style="color:var(--cream)">Weekly Update:</b> Refreshes after Sleeper opens the new fantasy week. Until then, the previous matchup remains featured and switches to a Tuesday result recap.</div>
  </div>`;
  if(details)details.open=false;
@@ -7657,7 +7662,7 @@ bootstrap();
 <script>
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
-    navigator.serviceWorker.register('./service-worker.js?v=151', {updateViaCache:'none'}).then(reg => reg.update()).catch(() => {});
+    navigator.serviceWorker.register('./service-worker.js?v=152', {updateViaCache:'none'}).then(reg => reg.update()).catch(() => {});
   });
 }
 </script>

@@ -1,4 +1,4 @@
-const CACHE_NAME = 'lone-star-dynasty-v151-tuesday-recap-belt-match';
+const CACHE_NAME = 'lone-star-dynasty-v152-personalized-storyline';
 const APP_SHELL = [
   './',
   './index.html',
