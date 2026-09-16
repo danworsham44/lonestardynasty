@@ -13,7 +13,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
 <meta name="mobile-web-app-capable" content="yes" />
 <meta name="application-name" content="Lone Star Dynasty" />
-<meta name="lsd-build" content="v150" />
+<meta name="lsd-build" content="v151" />
 <title>Lone Star Dynasty</title>
 <style>
 :root{--ink:#07101a;--ink2:#0d1824;--panel:rgba(10,18,28,.91);--paper:#efe4cc;--muted:#aeb7c2;--red:#c83632;--red2:#8d201f;--line:rgba(239,228,204,.18);--gold:#c49a47;--green:#64b76d;--shadow:0 18px 50px rgba(0,0,0,.34)}
@@ -4080,7 +4080,7 @@ async function v57RenderStory(){
   <h4>Where It Swings</h4><p>The model can identify a favorite, but the dangerous part is lineup variance. A flex player or secondary starter beating projection by 8–12 points can erase the entire expected margin. Those last lineup decisions are where the week can turn.</p>
   <h4>What To Watch</h4><p>Watch the early scoring for separation. If one side builds a lead before the late-window stars take the field, the pressure shifts onto the opponent's premium players. If it stays close into Sunday night, this becomes exactly the kind of featured matchup that can come down to one final possession.</p>
   <h4>Storyline Outlook</h4><p>${esc(fav.name)} gets the model's first nod, but projections do not win fantasy matchups and nobody gets a trophy for looking good on Wednesday. The actual performances decide which franchise owns the week's headline — and which owner spends Monday explaining what went wrong.</p>
-  <div class="v57note"><b style="color:var(--cream)">New every Wednesday:</b> Matchup of the Week and this full storyline refresh for that week's featured game using current standings, projections, rivalry history and league context.</div>
+  <div class="v57note"><b style="color:var(--cream)">Weekly Update:</b> Refreshes after Sleeper opens the new fantasy week. Until then, the previous matchup remains featured and switches to a Tuesday result recap.</div>
  </div>`;
  if(details)details.open=false;
  return true
@@ -7631,10 +7631,22 @@ async function v150RefreshBeltPresentation(games=[]){
 async function v150MarkBeltGame(){
  const hero=document.getElementById('motw'),a=state.featured?.[0],b=state.featured?.[1];if(!hero||!a||!b)return;
  hero.querySelector('.motw-belt-game-v150')?.remove();
- try{const belt=await v34BeltData(),holder=[a,b].find(t=>norm(t.name)===norm(belt.holder));if(!holder)return;const challenger=holder===a?b:a,badge=document.createElement('div');badge.className='motw-belt-game-v150';badge.innerHTML=`<strong>🏆 BELT GAME</strong><span>${esc(challenger.name)} can take the Lone Star Belt from ${esc(holder.name)}</span>`;hero.querySelector('.match-week')?.insertAdjacentElement('beforebegin',badge);const note=document.getElementById('motwNote');if(note)note.textContent=`The Lone Star Belt is on the line • ${challenger.name} challenges reigning holder ${holder.name}.`;}catch(e){}
+ try{const belt=await v34BeltData(),holder=[a,b].find(t=>norm(t.name)===norm(belt.holder));if(!holder)return;const challenger=holder===a?b:a,badge=document.createElement('div');badge.className='motw-belt-game-v150';badge.innerHTML=`<strong>🏆 BELT MATCH</strong><span>${esc(holder.name)} set to defend belt against ${esc(challenger.name)}</span>`;hero.querySelector('.match-week')?.insertAdjacentElement('beforebegin',badge);const note=document.getElementById('motwNote');if(note)note.textContent='';}catch(e){}
+}
+function v151RenderTuesdayRecap(){
+ const old=document.getElementById('motwTuesdayRecapV151');if(old)old.remove();
+ if(new Date().getDay()!==2)return;
+ const a=state.featured?.[0],b=state.featured?.[1];if(!a||!b)return;
+ const ma=state.matchups.find(m=>Number(m.roster_id)===Number(a.roster?.roster_id)),mb=state.matchups.find(m=>Number(m.roster_id)===Number(b.roster?.roster_id));
+ if(!ma||!mb||ma.matchup_id!==mb.matchup_id)return;
+ const sa=Number(ma.points||0),sb=Number(mb.points||0);if(sa===0&&sb===0)return;
+ const winner=sa===sb?null:sa>sb?a:b,loser=winner===a?b:a,margin=Math.abs(sa-sb),week=Number(state.displayWeek||state.week||1),recap=document.createElement('section');
+ recap.id='motwTuesdayRecapV151';recap.className='motw-tuesday-recap-v151';
+ recap.innerHTML=winner?`<small>WEEK ${week} RESULT</small><strong>${esc(winner.name)} wins ${sa>sb?sa.toFixed(2):sb.toFixed(2)}–${sa>sb?sb.toFixed(2):sa.toFixed(2)}</strong><span>${esc(winner.name)} took down ${esc(loser.name)} by ${margin.toFixed(2)} points. The previous matchup stays on the board until Sleeper opens Week ${week+1}.</span>`:`<small>WEEK ${week} RESULT</small><strong>${esc(a.name)} and ${esc(b.name)} finish tied ${sa.toFixed(2)}–${sb.toFixed(2)}</strong><span>The previous matchup stays on the board until Sleeper opens Week ${week+1}.</span>`;
+ document.getElementById('motw')?.insertAdjacentElement('afterend',recap);
 }
 const renderMOTWBeforeV150=renderMOTW;
-renderMOTW=function(){const out=renderMOTWBeforeV150();v150MarkBeltGame();return out};
+renderMOTW=function(){const out=renderMOTWBeforeV150();v150MarkBeltGame();v151RenderTuesdayRecap();return out};
 if(typeof renderOrderV20==='function'){const baseOrderV145=renderOrderV20;renderOrderV20=function(){baseOrderV145();v145AnnotateDraftMovement()}}
 const baseStandingsV145=renderStandings;
 renderStandings=function(){baseStandingsV145();v145CombineStandings();v145AnnotateDraftMovement();v149AnnotateStandingsMovement()};
@@ -7645,7 +7657,7 @@ bootstrap();
 <script>
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
-    navigator.serviceWorker.register('./service-worker.js?v=150', {updateViaCache:'none'}).then(reg => reg.update()).catch(() => {});
+    navigator.serviceWorker.register('./service-worker.js?v=151', {updateViaCache:'none'}).then(reg => reg.update()).catch(() => {});
   });
 }
 </script>
@@ -8531,6 +8543,8 @@ if ('serviceWorker' in navigator) {
 .standings-movement-v149 small{font-size:7px;letter-spacing:.45px;text-transform:uppercase;color:var(--muted)}
 .motw-belt-game-v150{width:min(calc(100% - 28px),720px);margin:8px auto 2px;padding:10px 14px;display:flex;align-items:center;justify-content:center;gap:10px;flex-wrap:wrap;text-align:center;border:1px solid rgba(240,189,85,.7);background:linear-gradient(90deg,rgba(112,74,5,.28),rgba(240,189,85,.12),rgba(112,74,5,.28));box-shadow:0 0 24px rgba(240,189,85,.10)}
 .motw-belt-game-v150 strong{color:#f0bd55;font-family:Impact,Haettenschweiler,sans-serif;font-size:18px;letter-spacing:1.5px}.motw-belt-game-v150 span{color:var(--paper);font-size:11px;font-weight:900}
+.motw-tuesday-recap-v151{width:min(100%,1180px);margin:12px auto 4px;padding:15px 18px;border-left:5px solid var(--red);border-top:1px solid rgba(239,228,204,.24);border-right:1px solid rgba(239,228,204,.14);border-bottom:1px solid rgba(239,228,204,.14);background:linear-gradient(90deg,rgba(200,54,50,.14),rgba(9,19,31,.96));display:grid;gap:4px}
+.motw-tuesday-recap-v151 small{color:var(--red2);font-size:9px;font-weight:1000;letter-spacing:1.5px}.motw-tuesday-recap-v151 strong{color:var(--cream);font-family:Impact,Haettenschweiler,sans-serif;font-size:24px;letter-spacing:.5px}.motw-tuesday-recap-v151 span{color:var(--muted);font-size:11px;line-height:1.45}
 @media(max-width:1050px){.standings-grid-v144{grid-template-columns:1fr 1fr}}
 @media(max-width:760px){.standings-grid-v144{grid-template-columns:1fr}}
 </style>
