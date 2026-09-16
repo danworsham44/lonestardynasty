@@ -1,4 +1,4 @@
-const CACHE_NAME = 'lone-star-dynasty-v156-expanded-recaps';
+const CACHE_NAME = 'lone-star-dynasty-v157-winner-aware-autopsy';
 const APP_SHELL = [
   './',
   './index.html',
