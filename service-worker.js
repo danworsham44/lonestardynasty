@@ -1,4 +1,4 @@
-const CACHE_NAME = 'lone-star-dynasty-v155-clickable-motw-archive';
+const CACHE_NAME = 'lone-star-dynasty-v156-expanded-recaps';
 const APP_SHELL = [
   './',
   './index.html',
