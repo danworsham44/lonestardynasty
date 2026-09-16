@@ -1,4 +1,4 @@
-const CACHE_NAME = 'lone-star-dynasty-v152-personalized-storyline';
+const CACHE_NAME = 'lone-star-dynasty-v154-grouped-prime-time';
 const APP_SHELL = [
   './',
   './index.html',

@@ -13,7 +13,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
 <meta name="mobile-web-app-capable" content="yes" />
 <meta name="application-name" content="Lone Star Dynasty" />
-<meta name="lsd-build" content="v152" />
+<meta name="lsd-build" content="v154" />
 <title>Lone Star Dynasty</title>
 <style>
 :root{--ink:#07101a;--ink2:#0d1824;--panel:rgba(10,18,28,.91);--paper:#efe4cc;--muted:#aeb7c2;--red:#c83632;--red2:#8d201f;--line:rgba(239,228,204,.18);--gold:#c49a47;--green:#64b76d;--shadow:0 18px 50px rgba(0,0,0,.34)}
@@ -4046,6 +4046,10 @@ function v57ProjectedLineup(team,schedule=new Map()){
 }
 function v152PlayerList(rows){return rows.map(x=>`${x.p.name}${x.game?` (${x.p.nflTeam} vs ${x.game.opponent} • ${x.game.time} CT)`:''}`).join(', ')}
 function v152InjuryRows(lineup){return lineup.starters.filter(x=>{const s=String(x.p.injuryStatus||'').toUpperCase();return s&&!['ACTIVE','HEALTHY','NONE','NA','N/A'].includes(s)})}
+function v153WindowProjection(rows){return rows.reduce((sum,x)=>sum+Number(x.proj||0),0)}
+function v154NaturalList(items){if(items.length<2)return items[0]||'';if(items.length===2)return `${items[0]} and ${items[1]}`;return `${items.slice(0,-1).join(', ')} and ${items[items.length-1]}`}
+function v154GroupedGames(rows){const groups=new Map();rows.forEach(x=>{const g=x.game,teams=g?[String(x.p.nflTeam||'').toUpperCase(),String(g.opponent||'').toUpperCase()].sort().join('-'):'unknown',key=`${teams}|${g?.time||''}`;if(!groups.has(key))groups.set(key,{names:[],game:g,nflTeam:String(x.p.nflTeam||'').toUpperCase()});groups.get(key).names.push(x.p.name)});return [...groups.values()].map(g=>{if(!g.game)return v154NaturalList(g.names);const time=String(g.game.time||'').replace(/^[A-Za-z]{3},?\s*/,'');return `${v154NaturalList(g.names)} in ${g.nflTeam} vs ${g.game.opponent} at ${time} CT`}).join('; ')}
+function v153WindowLine(team,rows,windowName){const count=rows.length,total=v153WindowProjection(rows),lead=windowName==='Thursday'?`${team.name} kicks off this matchup with ${count} player${count===1?'':'s'} Thursday night`:`${team.name} enters Monday night with ${count} player${count===1?'':'s'} remaining`;return `${lead}, projected for ${total.toFixed(2)} combined points: ${v154GroupedGames(rows)}.`}
 async function v57RenderStory(){
  const body=document.getElementById('motwStoryBodyV35'),details=document.getElementById('motwStoryV35');
  if(!body||!state?.featured?.length)return false;
@@ -4058,17 +4062,17 @@ async function v57RenderStory(){
  const dakCee=[norm(a.name),norm(b.name)].sort().join('|')===['ceedee nutz','dakstreetboys'].sort().join('|');
  if(dakCee&&(!h||Number(h.meetings)<2)){const dakIsA=norm(a.name)==='dakstreetboys';h={wins:dakIsA?2:0,losses:dakIsA?0:2,ties:0,meetings:2,games:[]}}
  let series='The available league history makes this a fresh chapter between these franchises.';
- if(dakCee)series='DakstreetBoys beat CeeDee Nutz twice in 2025. CeeDee Nutz has never beaten DakstreetBoys — not once.';
+ if(dakCee)series='Every piece of Lone Star history favors Miguel: DakstreetBoys won both previous meetings in 2025, and Josh failed in both attempts to beat them. A third loss starts looking like ownership; Josh’s first win would finally give this rivalry a pulse.';
  else if(h?.meetings){const unbeaten=h.wins===h.meetings?a:h.losses===h.meetings?b:null;series=unbeaten?`${unbeaten.name} owns a perfect ${h.meetings}-0 record in this series. The other side is still hunting for its first answer.`:`${a.name} carries a ${h.wins}-${h.losses}${h.ties?'-'+h.ties:''} record against ${b.name} into this matchup.`}
  const aStars=ap.starters.slice().sort((x,y)=>y.proj-x.proj).slice(0,3),bStars=bp.starters.slice().sort((x,y)=>y.proj-x.proj).slice(0,3);
  let belt=null;try{belt=await v34BeltData()}catch{}const beltHolder=[a,b].find(t=>norm(t.name)===norm(belt?.holder||'')),challenger=beltHolder?(beltHolder===a?b:a):null,champ=[a,b].find(t=>norm(t.name)==='dakstreetboys');
  const thA=ap.starters.filter(x=>x.game?.day==='Thursday'),thB=bp.starters.filter(x=>x.game?.day==='Thursday'),monA=ap.starters.filter(x=>x.game?.day==='Monday'),monB=bp.starters.filter(x=>x.game?.day==='Monday'),injA=v152InjuryRows(ap),injB=v152InjuryRows(bp);
- const thursday=(thA.length||thB.length)?`${thA.length?`${a.name} can throw Thursday's first punch with ${v152PlayerList(thA)}.`:''} ${thB.length?`${b.name} answers Thursday with ${v152PlayerList(thB)}.`:''}`.trim():'Neither side has a Thursday starter, so the belt fight waits until Sunday.';
- const monday=(monA.length||monB.length)?`${monA.length?`${a.name} holds Monday-night leverage with ${v152PlayerList(monA)}.`:''} ${monB.length?`${b.name} holds Monday-night leverage with ${v152PlayerList(monB)}.`:''} If the score is close Sunday night, that is where the miracle—or the heartbreak—lives.`.trim():'Neither lineup currently owns a Monday-night rescue plan. If somebody is buried after Sunday, there may be nobody left to save them.';
- const injuries=(injA.length||injB.length)?`${injA.length?`${a.name} must monitor ${injA.map(x=>`${x.p.name} (${x.p.injuryStatus})`).join(', ')}.`:''} ${injB.length?`${b.name} must monitor ${injB.map(x=>`${x.p.name} (${x.p.injuryStatus})`).join(', ')}.`:''}`.trim():'Both starting lineups currently avoid a major Sleeper injury designation, but Sunday inactive reports still get the final word.';
- const gap=Math.abs(fp.total-op.total),trash=dakCee?`${b.name==='CeeDee Nutz'?b.owner:a.owner} has a chance to end the “never beat DakstreetBoys” jokes. ${norm(a.name)==='dakstreetboys'?a.owner:b.owner} has two wins, the championship and the belt—the kind of receipt collection that gets unbearable if it reaches three.`:beltHolder?`${challenger.owner} is not chasing an ordinary win; ${challenger.owner} can take the belt off ${beltHolder.owner}. ${beltHolder.owner} gets the jokes if the defense holds. The league gets screenshots forever if it does not.`:gap>=10?`${fav.name} has enough of an edge to talk reckless. If ${dog.name} pulls the upset, the favorite may want to mute the group chat before the screenshots arrive.`:`The projection is close enough for both owners to talk—and close enough that only one of them will enjoy rereading those messages Monday.`;
+ const thursday=(thA.length||thB.length)?`${thA.length?v153WindowLine(a,thA,'Thursday'):''} ${thB.length?v153WindowLine(b,thB,'Thursday'):''} ${thA.length&&!thB.length?`${a.owner} gets to put points on the board while ${b.owner} can only watch.`:thB.length&&!thA.length?`${b.owner} gets the early scoreboard while ${a.owner} has to sit on his hands.`:'Both owners get an immediate chance to set the tone.'}`.trim():'Neither side has a Thursday starter, so both owners have to wait until Sunday before the talking can be backed up.';
+ const monday=(monA.length||monB.length)?`${monA.length?v153WindowLine(a,monA,'Monday'):''} ${monB.length?v153WindowLine(b,monB,'Monday'):''} ${monA.length&&!monB.length?`If this is close after Sunday, ${a.owner} owns the final word and ${b.owner} is stuck watching.`:monB.length&&!monA.length?`If this is close after Sunday, ${b.owner} owns the final word and ${a.owner} is stuck watching.`:'If the score is close after Sunday, Monday night decides which owner gets the miracle and which one gets the misery.'}`.trim():'Neither lineup has a Monday-night player waiting in reserve. If one owner is buried after Sunday, there is no miracle coming.';
+ const injuries=(injA.length||injB.length)?`${injA.length?`${a.name} must monitor ${injA.map(x=>`${x.p.name} (${x.p.injuryStatus})`).join(', ')}. ${a.owner} cannot afford a late inactive in a matchup this tight.`:''} ${injB.length?`${b.name} must monitor ${injB.map(x=>`${x.p.name} (${x.p.injuryStatus})`).join(', ')}. ${b.owner} needs a clean Sunday report, not another excuse.`:''}`.trim():'Both starting lineups currently avoid a major Sleeper injury designation. No built-in excuses yet—Sunday’s inactive reports get the final word.';
+ const gap=Math.abs(fp.total-op.total);
  const headline=dakCee?'The Champ, the Belt and CeeDee Nutz’s Shot at History':beltHolder?`${beltHolder.name} Puts the Belt on the Line`:`${a.name} vs. ${b.name} — this week’s Lone Star spotlight`;
- const stakes=[champ?`${champ.name} enters as the reigning 2025 Lone Star champion.`:'',beltHolder?`${beltHolder.name} is defending the Lone Star Belt against ${challenger.name}. The winner leaves with the belt.`:'',dakCee?'CeeDee Nutz is trying to do something the franchise has never done: beat DakstreetBoys.':''].filter(Boolean).join(' ');
+ const stakes=[champ?`${champ.name} enters as the reigning 2025 Lone Star champion.`:'',beltHolder?`${beltHolder.name} is defending the Lone Star Belt against ${challenger.name}. The winner leaves with the belt.`:'',dakCee?'Miguel already owns the championship, the belt and two wins over Josh. Josh can take the hardware and erase the ugliest zero in this rivalry with one upset.':''].filter(Boolean).join(' ');
  body.dataset.v57key=key;
  body.innerHTML=`<div class="v57story ${beltHolder?'belt-story-v152':''}">
   <div class="eyebrow">Lone Star Matchup File • Week ${wk}</div>
@@ -4076,14 +4080,13 @@ async function v57RenderStory(){
   <div class="v152-story-tags">${champ?'<span>2025 Champion</span>':''}${beltHolder?'<span>🏆 Belt Defense</span>':''}${dakCee?'<span>DakstreetBoys leads 2–0</span>':''}</div>
   <div class="v57score"><div><strong>${esc(a.name)}</strong><b>${ap.total.toFixed(2)}</b><span>Sleeper starting lineup</span></div><div style="font-family:Impact,sans-serif;color:#f0bd55">VS</div><div><strong>${esc(b.name)}</strong><b>${bp.total.toFixed(2)}</b><span>Sleeper starting lineup</span></div></div>
   <h4>The Stakes</h4><p>${esc(stakes||`Week ${wk} puts two franchises under the Lone Star spotlight with standings position and bragging rights on the line.`)}</p>
-  <h4>Projection Edge</h4><p>The same full Sleeper starting-lineup calculation used in the Tale of the Tape—including kicker and defense—gives ${esc(fav.name)} a ${fp.total.toFixed(2)} to ${op.total.toFixed(2)} edge. The margin is ${gap.toFixed(2)} points: close enough for one busted coverage, goal-line carry or defensive touchdown to flip the whole script.</p>
-  <h4>${esc(a.name)} — Players Driving the Model</h4><p>${aStars.map(x=>`${esc(x.p.name)} (${x.proj.toFixed(1)})`).join(', ')} currently provide the biggest projected contributions on the ${esc(a.name)} side.</p>
-  <h4>${esc(b.name)} — Players Driving the Model</h4><p>${bStars.map(x=>`${esc(x.p.name)} (${x.proj.toFixed(1)})`).join(', ')} headline the projection for ${esc(b.name)}.</p>
-  <h4>Series Receipts</h4><p>${esc(series)}</p>
-  <h4>Trash Talk Forecast</h4><p>${esc(trash)}</p>
-  <h4>Thursday First Punch</h4><p>${esc(thursday)}</p>
-  <h4>Injury Watch</h4><p>${esc(injuries)}</p>
+  <h4>Projection Edge</h4><p>Early projections have ${esc(fav.name)} as a ${gap.toFixed(2)}-point favorite, ${fp.total.toFixed(2)}–${op.total.toFixed(2)}. ${esc(fav.owner)} gets the paper advantage; ${esc(dog.owner)} gets the opportunity to make those numbers look stupid when the games start.</p>
+  <h4>${esc(a.name)} — Players Driving the Matchup</h4><p>${aStars.map(x=>`${esc(x.p.name)} (${x.proj.toFixed(1)})`).join(', ')} carry the biggest projections for ${esc(a.name)}. If those headliners disappear, ${esc(a.owner)} will hear about it long before Monday.</p>
+  <h4>${esc(b.name)} — Players Driving the Matchup</h4><p>${bStars.map(x=>`${esc(x.p.name)} (${x.proj.toFixed(1)})`).join(', ')} lead the ${esc(b.name)} projection. ${esc(b.owner)} needs stars—not reputation—to settle this one.</p>
+  <h4>History</h4><p>${esc(series)}</p>
+  <h4>Thursday Night Kickoff</h4><p>${esc(thursday)}</p>
   <h4>Monday-Night Miracle</h4><p>${esc(monday)}</p>
+  <h4>Injury Watch</h4><p>${esc(injuries)}</p>
   <h4>Final Word</h4><p>${beltHolder?`${esc(beltHolder.name)} has the championship-era swagger and the belt. ${esc(challenger.name)} has the chance to take both the headline and the hardware. By Tuesday, one side gets the gold and the other gets the group-chat autopsy.`:`${esc(fav.name)} gets the projection nod, but the actual performances decide who owns the headline and who spends Tuesday explaining what went wrong.`}</p>
   <div class="v57note"><b style="color:var(--cream)">Weekly Update:</b> Refreshes after Sleeper opens the new fantasy week. Until then, the previous matchup remains featured and switches to a Tuesday result recap.</div>
  </div>`;
@@ -7662,7 +7665,7 @@ bootstrap();
 <script>
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
-    navigator.serviceWorker.register('./service-worker.js?v=152', {updateViaCache:'none'}).then(reg => reg.update()).catch(() => {});
+    navigator.serviceWorker.register('./service-worker.js?v=154', {updateViaCache:'none'}).then(reg => reg.update()).catch(() => {});
   });
 }
 </script>
