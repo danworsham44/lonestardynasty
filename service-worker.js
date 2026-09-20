@@ -1,4 +1,4 @@
-const CACHE_NAME = 'lone-star-dynasty-v157-winner-aware-autopsy';
+const CACHE_NAME = 'lone-star-dynasty-v158-miguel-memorial';
 const APP_SHELL = [
   './',
   './index.html',
@@ -8,7 +8,8 @@ const APP_SHELL = [
   './favicon-32x32.png',
   './icon-192.png',
   './icon-512.png',
-  './lone-star-logo.jpg'
+  './lone-star-logo.jpg',
+  './miguel-mendoza-memorial.png'
 ];
 
 self.addEventListener('install', event => {

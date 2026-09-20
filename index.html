@@ -13,7 +13,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
 <meta name="mobile-web-app-capable" content="yes" />
 <meta name="application-name" content="Lone Star Dynasty" />
-<meta name="lsd-build" content="v157" />
+<meta name="lsd-build" content="v158" />
 <title>Lone Star Dynasty</title>
 <style>
 :root{--ink:#07101a;--ink2:#0d1824;--panel:rgba(10,18,28,.91);--paper:#efe4cc;--muted:#aeb7c2;--red:#c83632;--red2:#8d201f;--line:rgba(239,228,204,.18);--gold:#c49a47;--green:#64b76d;--shadow:0 18px 50px rgba(0,0,0,.34)}
@@ -787,6 +787,14 @@ main{padding-bottom:18px!important}.footer{margin-top:22px!important;padding:14p
 .v121-cbs-status{margin-top:8px;font-size:9px;color:var(--muted)}
 @media(max-width:640px){.v121-cbs-head{align-items:flex-start;flex-direction:column}.v121-cbs-row{grid-template-columns:1fr auto}}
 </style>
+<style id="v158MemorialStyle">
+.miguel-memorial-v158{position:relative;margin:14px auto 18px;padding:8px;width:min(100%,720px);border:1px solid rgba(218,169,70,.62);background:linear-gradient(145deg,rgba(4,8,13,.98),rgba(81,9,16,.52),rgba(4,8,13,.98));box-shadow:0 18px 48px rgba(0,0,0,.55),0 0 30px rgba(155,23,32,.14);overflow:hidden}
+.miguel-memorial-v158::before{content:"";position:absolute;inset:4px;border:1px solid rgba(239,228,204,.18);pointer-events:none}
+.miguel-memorial-v158 img{display:block;width:100%;height:auto;object-fit:contain;background:#05090e}
+.miguel-memorial-v158 figcaption{padding:10px 8px 4px;text-align:center;color:#efe2c7;font-size:11px;font-weight:900;letter-spacing:1.2px;text-transform:uppercase}
+.miguel-memorial-v158 figcaption span{color:#d7aa4f}
+@media(max-width:620px){.miguel-memorial-v158{margin:8px auto 14px;padding:5px}.miguel-memorial-v158 figcaption{padding:8px 5px 3px;font-size:9px;letter-spacing:.75px}}
+</style>
 
 </head>
 <body>
@@ -802,6 +810,7 @@ main{padding-bottom:18px!important}.footer{margin-top:22px!important;padding:14p
 </div></header>
 <main>
 <section class="page active" id="homePage">
+  <figure class="miguel-memorial-v158" aria-label="In loving memory of Miguel Eduardo Mendoza, owner of DakstreetBoys"><img src="miguel-mendoza-memorial.png" alt="In loving memory of Miguel Eduardo Mendoza, 1985–2026"><figcaption>Forever a part of Lone Star Dynasty <span>•</span> DakstreetBoys</figcaption></figure>
   <div class="champion-banner" id="championBanner"><div class="champion-crown">🏆</div><div class="champion-copy"><strong>Defending Champion</strong><span>Loading the most recent Lone Star champion from league history…</span></div><img class="champion-avatar" src="lone-star-logo.jpg" alt=""></div><div class="league-motto" aria-label="League motto"><span>EARN IT</span><b>•</b><span>KEEP IT</span><b>•</b><span>DEFEND IT</span></div>
 <section class="belt-strip-v33" aria-label="Lone Star Belt">
   <div class="belt-trophy-v33">🏆</div>
@@ -7713,7 +7722,7 @@ bootstrap();
 <script>
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
-    navigator.serviceWorker.register('./service-worker.js?v=157', {updateViaCache:'none'}).then(reg => reg.update()).catch(() => {});
+    navigator.serviceWorker.register('./service-worker.js?v=158', {updateViaCache:'none'}).then(reg => reg.update()).catch(() => {});
   });
 }
 </script>
