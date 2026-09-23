@@ -1,4 +1,4 @@
-const CACHE_NAME = 'lone-star-dynasty-v158-miguel-memorial';
+const CACHE_NAME = 'lone-star-dynasty-v159-weekly-awards-story-belt-motw';
 const APP_SHELL = [
   './',
   './index.html',

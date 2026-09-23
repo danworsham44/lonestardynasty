@@ -13,7 +13,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
 <meta name="mobile-web-app-capable" content="yes" />
 <meta name="application-name" content="Lone Star Dynasty" />
-<meta name="lsd-build" content="v158" />
+<meta name="lsd-build" content="v159" />
 <title>Lone Star Dynasty</title>
 <style>
 :root{--ink:#07101a;--ink2:#0d1824;--panel:rgba(10,18,28,.91);--paper:#efe4cc;--muted:#aeb7c2;--red:#c83632;--red2:#8d201f;--line:rgba(239,228,204,.18);--gold:#c49a47;--green:#64b76d;--shadow:0 18px 50px rgba(0,0,0,.34)}
@@ -937,8 +937,19 @@ function sleeperTeamProjection(matchup){
 function projectedPoints(t){const m=state.matchups.find(x=>Number(x.roster_id)===Number(t.roster.roster_id));const calc=sleeperTeamProjection(m);if(Number.isFinite(calc))return calc.toFixed(2);const raw=m?.projected_points??m?.projected??m?.projected_score;return Number.isFinite(Number(raw))?Number(raw).toFixed(2):'—'}
 function currentMatchupScore(t){const m=state.matchups.find(x=>Number(x.roster_id)===Number(t?.roster?.roster_id));return m?Number(m.points||0).toFixed(1):'—'}
 function renderMOTWCurrentScores(){const a=state.featured?.[0],b=state.featured?.[1];if(!a||!b)return;const ae=$('#motwAStats'),be=$('#motwBStats');if(ae)ae.innerHTML=`<small class="motw-score-label">Current Score</small><strong class="motw-live-score">${esc(currentMatchupScore(a))}</strong>`;if(be)be.innerHTML=`<small class="motw-score-label">Current Score</small><strong class="motw-live-score">${esc(currentMatchupScore(b))}</strong>`;}
-function renderTape(a,b,againstA='—',againstB='—'){const rows=[['Record',rec(a.roster),rec(b.roster)],['Standings','#'+standingRank(a),'#'+standingRank(b)],['Projected Points For',projectedPoints(a),projectedPoints(b)],['Average Points',avgPoints(a),avgPoints(b)],['Against',againstA,againstB]];return `<div class="motw-tape-shell"><div class="motw-tape-title">Tale of the Tape</div><div class="motw-tape">${rows.map(([label,av,bv])=>`<div class="tape-team-value">${esc(av)}</div><div class="tape-label">${esc(label)}</div><div class="tape-team-value">${esc(bv)}</div>`).join('')}</div></div>`}
-function setMOTW(a,b){if(!a||!b)return;state.featured=[a,b];archiveMOTW(a,b);$('#motwA').textContent=a.name;$('#motwB').textContent=b.name;$('#motwAImg').src=a.avatar;$('#motwBImg').src=b.avatar;$('#motwAImg').onerror=function(){imgFallback(this)};$('#motwBImg').onerror=function(){imgFallback(this)};$('#motwARec').textContent=`Owner: ${a.owner}`;$('#motwBRec').textContent=`Owner: ${b.owner}`;renderMOTWCurrentScores();let tape=$('#motwTape');if(!tape){tape=document.createElement('div');tape.id='motwTape';document.querySelector('#motw .hero-content').insertAdjacentElement('afterend',tape)}tape.innerHTML=renderTape(a,b,'Loading…','Loading…');headToHeadData(a,b).then(r=>{if(state.featured?.[0]===a&&state.featured?.[1]===b){const ar=r.meetings?`${r.wins}-${r.losses}${r.ties?'-'+r.ties:''}`:'0-0',br=r.meetings?`${r.losses}-${r.wins}${r.ties?'-'+r.ties:''}`:'0-0';tape.innerHTML=renderTape(a,b,ar,br)}}).catch(()=>{tape.innerHTML=renderTape(a,b,'—','—')});$('#motwWeek').textContent=`WEEK ${Number(state.displayWeek||state.week||1)} • LONE STAR DYNASTY`;$('#motwNote').textContent='Week 1 featured matchup • selected by combined FantasyCalc roster strength.'}
+function renderTape(a,b,againstA='—',againstB='—',motwA='—',motwB='—'){const rows=[['Record',rec(a.roster),rec(b.roster)],['Standings','#'+standingRank(a),'#'+standingRank(b)],['Projected Points For',projectedPoints(a),projectedPoints(b)],['Average Points',avgPoints(a),avgPoints(b)],['MOTW Record',motwA,motwB],['Against',againstA,againstB]];return `<div class="motw-tape-shell"><div class="motw-tape-title">Tale of the Tape</div><div class="motw-tape">${rows.map(([label,av,bv])=>`<div class="tape-team-value">${esc(av)}</div><div class="tape-label">${esc(label)}</div><div class="tape-team-value">${esc(bv)}</div>`).join('')}</div></div>`}
+async function motwRecordsV159(a,b){
+ let stored=[];try{stored=JSON.parse(localStorage.getItem('lsd-motw-history')||'[]')}catch{}
+ const season=String(state.league?.season||'2026'),currentWeek=Number(state.displayWeek||state.week||1),seed=[];
+ const overrides=typeof MOTW_COMMISSIONER_OVERRIDES!=='undefined'?MOTW_COMMISSIONER_OVERRIDES?.[season]:null;
+ Object.entries(overrides||{}).forEach(([week,pair])=>{if(Number(week)>=currentWeek||!Array.isArray(pair))return;const ta=state.teams.find(t=>norm(t.name)===norm(pair[0])),tb=state.teams.find(t=>norm(t.name)===norm(pair[1]));if(ta&&tb)seed.push({season,week:Number(week),a:ta.name,b:tb.name,aRosterId:Number(ta.roster?.roster_id),bRosterId:Number(tb.roster?.roster_id)})});
+ const unique=new Map([...stored,...seed].filter(h=>Number(h.week)<currentWeek).map(h=>[`${h.season}-${Number(h.week)}`,h])),records=new Map();
+ const row=name=>{const key=norm(name);if(!records.has(key))records.set(key,{wins:0,losses:0,ties:0});return records.get(key)};
+ const completed=await Promise.all([...unique.values()].map(async h=>({h,o:await motwOutcome(h)})));
+ completed.forEach(({h,o})=>{if(!o?.played)return;const ar=row(h.a),br=row(h.b);if(o.winner==='Tie'){ar.ties++;br.ties++}else if(norm(o.winner)===norm(h.a)){ar.wins++;br.losses++}else{br.wins++;ar.losses++}});
+ const label=t=>{const r=row(t.name);return `${r.wins}-${r.losses}${r.ties?'-'+r.ties:''}`};return {a:label(a),b:label(b)}
+}
+function setMOTW(a,b){if(!a||!b)return;state.featured=[a,b];archiveMOTW(a,b);$('#motwA').textContent=a.name;$('#motwB').textContent=b.name;$('#motwAImg').src=a.avatar;$('#motwBImg').src=b.avatar;$('#motwAImg').onerror=function(){imgFallback(this)};$('#motwBImg').onerror=function(){imgFallback(this)};$('#motwARec').textContent=`Owner: ${a.owner}`;$('#motwBRec').textContent=`Owner: ${b.owner}`;renderMOTWCurrentScores();let tape=$('#motwTape');if(!tape){tape=document.createElement('div');tape.id='motwTape';document.querySelector('#motw .hero-content').insertAdjacentElement('afterend',tape)}tape.innerHTML=renderTape(a,b,'Loading…','Loading…','Loading…','Loading…');Promise.all([headToHeadData(a,b),motwRecordsV159(a,b)]).then(([r,mr])=>{if(state.featured?.[0]===a&&state.featured?.[1]===b){const ar=r.meetings?`${r.wins}-${r.losses}${r.ties?'-'+r.ties:''}`:'0-0',br=r.meetings?`${r.losses}-${r.wins}${r.ties?'-'+r.ties:''}`:'0-0';tape.innerHTML=renderTape(a,b,ar,br,mr.a,mr.b)}}).catch(()=>{tape.innerHTML=renderTape(a,b,'—','—','0-0','0-0')});$('#motwWeek').textContent=`WEEK ${Number(state.displayWeek||state.week||1)} • LONE STAR DYNASTY`;$('#motwNote').textContent='Week 1 featured matchup • selected by combined FantasyCalc roster strength.'}
 function archiveMOTW(a,b){
   try{
     /* Never archive the startup placeholders before Sleeper's matchup feed resolves. */
@@ -2469,7 +2480,7 @@ v34css.textContent=`
 .v34-record{border:1px solid var(--line);background:rgba(7,17,28,.94);padding:15px}.v34-record small{display:block;color:var(--muted);font-size:9px;font-weight:1000;letter-spacing:1px;text-transform:uppercase}
 .v34-record strong{display:block;color:var(--cream);font-size:16px;margin-top:6px}.v34-record span{display:block;color:var(--muted);font-size:10px;margin-top:5px;line-height:1.35}
 .v34-modal{position:fixed;inset:0;z-index:10000;background:rgba(0,0,0,.76);display:none;align-items:center;justify-content:center;padding:18px}.v34-modal.open{display:flex}
-.v34-modal-card{width:min(560px,100%);max-height:78vh;overflow:auto;background:#09131f;border:1px solid rgba(225,184,75,.55);padding:18px}.v34-belt-row{display:grid;grid-template-columns:68px 1fr;gap:10px;padding:10px 0;border-bottom:1px solid rgba(255,255,255,.08)}
+.v34-modal-card{width:min(560px,100%);max-height:78vh;overflow:auto;background:#09131f;border:1px solid rgba(225,184,75,.55);padding:18px}.v34-belt-row{display:grid;grid-template-columns:68px 1fr;gap:10px;padding:10px;border-bottom:1px solid rgba(255,255,255,.08);border-left:4px solid transparent}.v34-belt-row.start{border-left-color:#d7aa4f;background:rgba(215,170,79,.055)}.v34-belt-row.defense{border-left-color:#556779;background:rgba(72,92,112,.055)}.v34-belt-row.retained{border-left-color:#9aa5b0;background:rgba(154,165,176,.045)}.v34-belt-row.transfer{border:1px solid rgba(215,170,79,.58);border-left:6px solid #c93636;background:linear-gradient(105deg,rgba(128,19,27,.32),rgba(215,170,79,.08),rgba(8,18,29,.96));box-shadow:inset 0 0 24px rgba(201,54,54,.12)}.v34-belt-change{display:inline-block;margin:0 0 5px;padding:3px 6px;border:1px solid rgba(215,170,79,.55);color:#f0bd55;font-size:7px;font-weight:1000;letter-spacing:.8px;text-transform:uppercase}
 @media(max-width:800px){.v34-record-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}@media(max-width:500px){.v34-record-grid{grid-template-columns:1fr}}
 `;document.head.appendChild(v34css);
 
@@ -2491,7 +2502,7 @@ async function v34InitBelt(){
  const belt=document.querySelector('.belt-strip-v33');if(!belt||!state?.teams?.length||!state.league||!state.nfl||belt.dataset.v34)return false;
  belt.dataset.v34='1';const b=await v34BeltData();belt.querySelector('strong').textContent=`${b.holder} HOLDS THE BELT`;belt.querySelector('span').textContent=b.latestEvent?.week?`Week ${b.latestEvent.week}: ${b.latestEvent.detail}`:'Beat the holder to take the belt';
  belt.onclick=()=>{let m=document.getElementById('v34Modal');if(!m){m=document.createElement('div');m.id='v34Modal';m.className='v34-modal';document.body.appendChild(m)}
- m.innerHTML=`<div class="v34-modal-card"><div style="display:flex;justify-content:space-between;align-items:center"><div><div class="card-title">The Lone Star Belt</div><div class="card-source">Lone Star Belt history</div></div><button class="ghost-btn" id="v34Close">Close</button></div><div style="margin-top:12px">${b.history.map(h=>`<div class="v34-belt-row"><strong>${h.week?`WK ${h.week}`:'START'}</strong><div><strong>${esc(h.holder)}</strong><br><small>${esc(h.detail)}</small></div></div>`).join('')}</div></div>`;m.classList.add('open');m.querySelector('#v34Close').onclick=()=>m.classList.remove('open');m.onclick=e=>{if(e.target===m)m.classList.remove('open')}};return true
+ m.innerHTML=`<div class="v34-modal-card"><div style="display:flex;justify-content:space-between;align-items:center"><div><div class="card-title">The Lone Star Belt</div><div class="card-source">Lone Star Belt history</div></div><button class="ghost-btn" id="v34Close">Close</button></div><div style="margin-top:12px">${b.history.map(h=>`<div class="v34-belt-row ${esc(h.type||'retained')}"><strong>${h.week?`WK ${h.week}`:'START'}</strong><div>${h.type==='transfer'?'<span class="v34-belt-change">Belt changed hands</span>':''}<strong>${esc(h.holder)}</strong><br><small>${esc(h.detail)}</small></div></div>`).join('')}</div></div>`;m.classList.add('open');m.querySelector('#v34Close').onclick=()=>m.classList.remove('open');m.onclick=e=>{if(e.target===m)m.classList.remove('open')}};return true
 }
 function v34AddRecords(){
  const main=document.getElementById('toolMain');if(!main||document.getElementById('v34Records'))return;
@@ -3185,7 +3196,7 @@ loadSeasonPerformance=async function(){
   let proj=new Map();try{proj=projectionMap(await getSleeperWeeklyProjections(completed))}catch{}
 
   const groups={};ms.forEach(m=>{if(m.matchup_id!=null)(groups[m.matchup_id]??=[]).push(m)});
-  let heartbreaker=null,fraud=null,upset=null,topIndividual=null,escape=null;
+  let heartbreaker=null,fraud=null,upset=null,topIndividual=null,escape=null,weekTop=null,weekLow=null;
 
   for(const g of Object.values(groups)){
     if(g.length!==2)continue;
@@ -3193,6 +3204,7 @@ loadSeasonPerformance=async function(){
     if(!ta||!tb)continue;
     const pa=Number(a.points||0),pb=Number(b.points||0);
     if(pa===0&&pb===0)continue;
+    for(const [team,points] of [[ta,pa],[tb,pb]]){if(!weekTop||points>weekTop.points)weekTop={team,points,week:completed};if(!weekLow||points<weekLow.points)weekLow={team,points,week:completed}}
 
     if(pa!==pb){
       const margin=Math.abs(pa-pb),winner=pa>pb?ta:tb,loser=pa>pb?tb:ta,winnerPts=Math.max(pa,pb);
@@ -3228,7 +3240,7 @@ loadSeasonPerformance=async function(){
     }
   }
 
-  p.heartbreaker=heartbreaker;p.fraud=fraud;p.upset=upset;p.topIndividual=topIndividual;p.escape=escape;
+  p.top=weekTop;p.low=weekLow;p.awardWeek=completed;p.heartbreaker=heartbreaker;p.fraud=fraud;p.upset=upset;p.topIndividual=topIndividual;p.escape=escape;
   renderPulse();
 };
 
@@ -3258,6 +3270,7 @@ renderPulse=function(){
     ['🪄 ESCAPE ARTIST',p.escape?`${p.escape.team.name} • won with ${p.escape.points.toFixed(1)}`:'Awaiting completed games']
   ];
   $('#pulse').innerHTML=awards.map(x=>`<div class="pulse-item"><div class="pulse-label">${x[0]}</div><div class="pulse-value">${esc(x[1])}</div></div>`).join('');
+  const note=document.querySelector('.weekly-awards-v43 .awards-note-v43');if(note&&p?.awardWeek)note.textContent=`WEEK ${p.awardWeek} • 10 WEEKLY HONORS • TAP TO VIEW`;
 };
 
 
@@ -4148,6 +4161,35 @@ async function v57RenderStory(){
  </div>`;
  if(details)details.open=false;
  return true
+}
+
+let v159PriorWeekCache={week:0,promise:null};
+async function v159PriorWeekResult(team,week){
+ if(week<1)return null;if(v159PriorWeekCache.week!==week||!v159PriorWeekCache.promise)v159PriorWeekCache={week,promise:getJSON(`https://api.sleeper.app/v1/league/${LEAGUE_ID}/matchups/${week}`).catch(()=>[])};
+ const ms=await v159PriorWeekCache.promise,m=ms.find(x=>Number(x.roster_id)===Number(team.roster?.roster_id));if(!m||m.matchup_id==null)return null;const om=ms.find(x=>x!==m&&x.matchup_id===m.matchup_id),opp=om?teamByRoster(om.roster_id):null;if(!om||!opp)return null;const points=Number(m.points||0),oppPoints=Number(om.points||0);return {team,opp,points,oppPoints,result:points>oppPoints?'W':points<oppPoints?'L':'T'}
+}
+function v159PriorLine(r){if(!r)return 'Previous-week result unavailable.';const verb=r.result==='W'?'beat':r.result==='L'?'lost to':'tied';return `${r.team.name} ${verb} ${r.opp.name}, ${r.points.toFixed(2)}–${r.oppPoints.toFixed(2)}.`}
+
+v57RenderStory=async function(){
+ const body=document.getElementById('motwStoryBodyV35'),details=document.getElementById('motwStoryV35');if(!body||!state?.featured?.length)return false;
+ const [a,b]=state.featured;if(!a||!b)return false;const wk=typeof fantasyWeekV45==='function'?fantasyWeekV45():Math.max(1,Number(state.nfl?.week||1)),key=`v159|${a.name}|${b.name}|${wk}|${state.history.length}|${state.projections.size}|${state.players.size}`;if(body.dataset.v57key===key)return true;
+ const schedule=await v152WeekSchedule(wk),ap=v57ProjectedLineup(a,schedule),bp=v57ProjectedLineup(b,schedule),standings=sortedStandings(),ra=standings.indexOf(a)+1,rb=standings.indexOf(b)+1,pfRank=[...state.teams].sort((x,y)=>Number(y.roster?.settings?.fpts||0)+Number(y.roster?.settings?.fpts_decimal||0)/100-(Number(x.roster?.settings?.fpts||0)+Number(x.roster?.settings?.fpts_decimal||0)/100)),paRank=pfRank.indexOf(a)+1,pbRank=pfRank.indexOf(b)+1;
+ const [h,motw,priorA,priorB]=await Promise.all([headToHeadData(a,b).catch(()=>null),motwRecordsV159(a,b).catch(()=>({a:'0-0',b:'0-0'})),v159PriorWeekResult(a,wk-1),v159PriorWeekResult(b,wk-1)]),fav=ap.total>=bp.total?a:b,dog=fav===a?b:a,fp=fav===a?ap:bp,op=fav===a?bp:ap,gap=Math.abs(fp.total-op.total);
+ let belt=null;try{belt=await v34BeltData()}catch{}const beltHolder=[a,b].find(t=>norm(t.name)===norm(belt?.holder||'')),challenger=beltHolder?(beltHolder===a?b:a):null,champ=[a,b].find(t=>norm(t.name)==='dakstreetboys');
+ const aw=Number(a.roster?.settings?.wins||0),al=Number(a.roster?.settings?.losses||0),at=Number(a.roster?.settings?.ties||0),bw=Number(b.roster?.settings?.wins||0),bl=Number(b.roster?.settings?.losses||0),bt=Number(b.roster?.settings?.ties||0),bothPerfect=aw>0&&bw>0&&!al&&!bl&&!at&&!bt,seriesLeader=h?.wins>h?.losses?a:h?.losses>h?.wins?b:null,seriesTrailer=seriesLeader?(seriesLeader===a?b:a):null,rankLeader=ra<rb?a:b;
+ let headline=beltHolder?`${beltHolder.name} Defends More Than a Record`:bothPerfect&&seriesLeader&&seriesLeader!==rankLeader?`${seriesLeader.owner} Owns the History. ${rankLeader.owner} Owns the Spotlight.`:bothPerfect?`Two Undefeated Teams. One Clean Record Survives.`:`${a.name} vs. ${b.name} — Week ${wk} Gets Personal`;
+ let setup=bothPerfect?`No manufactured hype needed: ${a.name} and ${b.name} both enter Week ${wk} at ${rec(a.roster)} and ${rec(b.roster)}. ${rankLeader.owner} brings the higher league position at #${Math.min(ra,rb)}, but the standings cannot erase what has already happened between these two.`:`${a.name} enters ${rec(a.roster)} and ranked #${ra}; ${b.name} enters ${rec(b.roster)} and ranked #${rb}. This is the kind of matchup that either builds momentum or exposes a record that was living on borrowed time.`;
+ if(seriesLeader)setup+=` ${seriesLeader.name} owns the head-to-head series ${seriesLeader===a?h.wins:h.losses}–${seriesLeader===a?h.losses:h.wins}. ${seriesTrailer.owner} can call it old news, but first he has to stop making it current.`;
+ const spotlight=`${a.owner} enters with a ${motw.a} Matchup-of-the-Week record; ${b.owner} enters ${motw.b}. ${motw.a==='0-0'?`${a.owner} is stepping under the featured-game lights for the first time.`:`${a.owner} already knows what winning the featured game feels like.`} ${motw.b==='0-0'?`${b.owner} is making his MOTW debut.`:`${b.owner} already has a featured-game receipt in the archive.`}`;
+ const prior=`${v159PriorLine(priorA)} ${v159PriorLine(priorB)} ${priorA?.result==='W'&&priorB?.result==='W'?'Neither owner arrives humbled, which means somebody is about to leave with a much quieter group chat.':''}`;
+ const numbers=`Early projections make ${fav.name} an ${gap.toFixed(2)}-point favorite, ${fp.total.toFixed(2)}–${op.total.toFixed(2)}. ${fav.owner} also brings the #${fav===a?paRank:pbRank} scoring offense; ${dog.owner} sits #${dog===a?paRank:pbRank}. ${seriesLeader&&fav!==seriesLeader?`The model belongs to ${fav.owner}. The receipts belong to ${seriesLeader.owner}. One of them is about to look very loud and very wrong.`:`The favorite has the numbers, but favorites do not get points for confidence.`}`;
+ const aStars=ap.starters.slice().sort((x,y)=>y.proj-x.proj).slice(0,3),bStars=bp.starters.slice().sort((x,y)=>y.proj-x.proj).slice(0,3),starLine=`${a.name} leans hardest on ${v154NaturalList(aStars.map(x=>`${x.p.name} (${x.proj.toFixed(1)})`))}. ${b.name} answers with ${v154NaturalList(bStars.map(x=>`${x.p.name} (${x.proj.toFixed(1)})`))}. If one of those headliners disappears, his owner will be the first name called in the Tuesday autopsy.`;
+ const thA=ap.starters.filter(x=>x.game?.day==='Thursday'),thB=bp.starters.filter(x=>x.game?.day==='Thursday'),monA=ap.starters.filter(x=>x.game?.day==='Monday'),monB=bp.starters.filter(x=>x.game?.day==='Monday'),injA=v152InjuryRows(ap),injB=v152InjuryRows(bp);
+ const thursday=(thA.length||thB.length)?`${thA.length?v153WindowLine(a,thA,'Thursday'):''} ${thB.length?v153WindowLine(b,thB,'Thursday'):''} ${thA.length&&!thB.length?`${a.owner} gets the first swing while ${b.owner} has to watch.`:thB.length&&!thA.length?`${b.owner} gets the first swing while ${a.owner} has to watch.`:'Both owners get an immediate chance to land the first punch.'}`.trim():'Neither team has a Thursday starter. The trash talk gets three extra days to age before either owner can prove a thing.';
+ const monday=(monA.length||monB.length)?`${monA.length?v153WindowLine(a,monA,'Monday'):''} ${monB.length?v153WindowLine(b,monB,'Monday'):''} ${monA.length&&!monB.length?`${a.owner} controls the final counterpunch if Sunday stays close.`:monB.length&&!monA.length?`${b.owner} controls the final counterpunch if Sunday stays close.`:'Both sides carry Monday ammunition, so no lead is safe until the final whistle.'}`.trim():'There is no Monday-night rescue crew in either lineup. Whoever is behind Sunday night gets to sleep with it.';
+ const injuries=(injA.length||injB.length)?`${injA.length?`${a.name}: ${injA.map(x=>`${x.p.name} (${x.p.injuryStatus})`).join(', ')}. ${a.owner} needs answers before lock.`:''} ${injB.length?`${b.name}: ${injB.map(x=>`${x.p.name} (${x.p.injuryStatus})`).join(', ')}. ${b.owner} cannot afford to donate a lineup spot.`:''}`.trim():'No major Sleeper injury designation is currently attached to either starting lineup. For now, nobody gets a medical excuse.';
+ const finalWord=beltHolder?`${beltHolder.owner} is defending the belt; ${challenger.owner} is trying to leave with the hardware and the headline. One walks out champion. The other becomes the next line in belt history.`:bothPerfect&&seriesLeader?`${rankLeader.owner} can protect the perfect record and justify the spotlight. ${seriesLeader.owner} can stay perfect, strengthen the series grip and make the rankings look late to the party. Either way, one undefeated record is getting dragged into Week ${wk+1}.`:`${fav.owner} has the projection. ${dog.owner} has the chance to turn it into evidence that the model got fooled. Tuesday will remember the winner and roast the explanation.`;
+ body.dataset.v57key=key;body.innerHTML=`<div class="v57story ${beltHolder?'belt-story-v152':''}"><div class="eyebrow">Lone Star Matchup File • Week ${wk}</div><div class="headline">${esc(headline)}</div><div class="v152-story-tags"><span>${esc(rec(a.roster))} vs ${esc(rec(b.roster))}</span><span>#${ra} vs #${rb}</span><span>MOTW ${esc(motw.a)} vs ${esc(motw.b)}</span>${seriesLeader?`<span>${esc(seriesLeader.name)} leads ${seriesLeader===a?h.wins:h.losses}–${seriesLeader===a?h.losses:h.wins}</span>`:''}${champ?'<span>2025 Champion</span>':''}${beltHolder?'<span>🏆 Belt Match</span>':''}</div><div class="v57score"><div><strong>${esc(a.name)}</strong><b>${ap.total.toFixed(2)}</b><span>Sleeper starting lineup</span></div><div style="font-family:Impact,sans-serif;color:#f0bd55">VS</div><div><strong>${esc(b.name)}</strong><b>${bp.total.toFixed(2)}</b><span>Sleeper starting lineup</span></div></div><h4>The Setup</h4><p>${esc(setup)}</p><h4>Under the MOTW Lights</h4><p>${esc(spotlight)}</p><h4>Last Week Left Receipts</h4><p>${esc(prior)}</p><h4>The Numbers vs. The History</h4><p>${esc(numbers)}</p><h4>Pressure Points</h4><p>${esc(starLine)}</p><h4>Thursday Night Kickoff</h4><p>${esc(thursday)}</p><h4>Monday-Night Miracle</h4><p>${esc(monday)}</p><h4>Injury Watch</h4><p>${esc(injuries)}</p><h4>Final Word</h4><p>${esc(finalWord)}</p></div>`;if(details)details.open=false;return true
 }
 
 /* Refresh on load and as featured matchup/week state changes. */
@@ -7722,10 +7764,16 @@ bootstrap();
 <script>
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
-    navigator.serviceWorker.register('./service-worker.js?v=158', {updateViaCache:'none'}).then(reg => reg.update()).catch(() => {});
+    navigator.serviceWorker.register('./service-worker.js?v=159', {updateViaCache:'none'}).then(reg => reg.update()).catch(() => {});
   });
 }
 </script>
+<style id="v159-weekly-awards-layout">
+.weekly-awards-v43 .pulse-item{min-height:82px!important;height:auto!important;padding:10px 12px!important;justify-content:flex-start!important}
+.weekly-awards-v43 .pulse-value{white-space:normal!important;overflow:visible!important;text-overflow:clip!important;overflow-wrap:anywhere!important;word-break:normal!important;font-size:12px!important;line-height:1.28!important}
+.weekly-awards-v43 .pulse-label{white-space:normal!important;line-height:1.25!important}
+@media(max-width:760px){.weekly-awards-v43 .pulse{grid-template-columns:repeat(2,minmax(0,1fr))!important}.weekly-awards-v43 .pulse-item{min-height:92px!important}.weekly-awards-v43 .pulse-value{font-size:11.5px!important}}
+</style>
 
 <style id="v109-player-profiles">
 /* V109 — native player profiles + universal player links */
