@@ -1,4 +1,4 @@
-const CACHE_NAME = 'lone-star-dynasty-v159-weekly-awards-story-belt-motw';
+const CACHE_NAME = 'lone-star-dynasty-v160-memorial-image-repair';
 const APP_SHELL = [
   './',
   './index.html',
@@ -9,7 +9,7 @@ const APP_SHELL = [
   './icon-192.png',
   './icon-512.png',
   './lone-star-logo.jpg',
-  './miguel-mendoza-memorial.png'
+  './miguel-mendoza-memorial.jpg'
 ];
 
 self.addEventListener('install', event => {
