@@ -13,7 +13,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
 <meta name="mobile-web-app-capable" content="yes" />
 <meta name="application-name" content="Lone Star Dynasty" />
-<meta name="lsd-build" content="v161" />
+<meta name="lsd-build" content="v162" />
 <title>Lone Star Dynasty</title>
 <style>
 :root{--ink:#07101a;--ink2:#0d1824;--panel:rgba(10,18,28,.91);--paper:#efe4cc;--muted:#aeb7c2;--red:#c83632;--red2:#8d201f;--line:rgba(239,228,204,.18);--gold:#c49a47;--green:#64b76d;--shadow:0 18px 50px rgba(0,0,0,.34)}
@@ -7394,7 +7394,7 @@ function v119Gameday(){
  const d=new Date(),mo=d.getMonth()+1,day=d.getDate();
  let evergreen=`⭐ LSD LIVE • WEEK ${week} • Earn it • Keep it • Defend it`;
  if(week===1&&mo===9)evergreen='🏈 HAPPY WEEK 1 • THE LONE STAR DYNASTY SEASON IS HERE';
- if(mo===10&&day>=25)evergreen='🎃 HAPPY HALLOWEEN FROM LONE STAR DYNASTY • WHERE DREAMS BECOME NIGHTMARES';
+ if((mo===10&&day>=25)||(mo===11&&day===1))evergreen='🎃 Happy Halloween - Lone Star Dynasty';
  if(mo===11&&day>=22&&day<=30)evergreen='🦃 HAPPY THANKSGIVING FROM LONE STAR DYNASTY';
  if(mo===12&&day>=20&&day<=26)evergreen='🎄 MERRY CHRISTMAS FROM LONE STAR DYNASTY';
  if((mo===12&&day>=31)||(mo===1&&day<=2))evergreen='🎆 HAPPY NEW YEAR FROM LONE STAR DYNASTY';
@@ -7772,7 +7772,7 @@ function v161UpdateScoreRace(){v161EnsureScoreRaceCard();const target=document.g
 v161EnsureScoreRaceCard();v161UpdateScoreRace();
 const baseGamedayV161=v119Gameday;
 v119Gameday=function(){v161EnsureScoreRaceCard();const out=baseGamedayV161();v161UpdateScoreRace();return out};
-function v161ApplySeasonalTheme(){const now=new Date(),month=now.getMonth()+1,day=now.getDate();let theme='',copy='';if((month===10&&day>=25)||(month===11&&day===1)){theme='halloween';copy='🎃 Lone Star Halloween • Welcome to the nightmare weeks'}else if(month===11){theme='thanksgiving';copy='🦃 Lone Star Thanksgiving • Come hungry, leave with a win'}else if(month===12){theme='christmas';copy='🎄 Lone Star Christmas • Wins, rivalries and holiday bragging rights'}document.body.classList.remove('theme-halloween-v161','theme-thanksgiving-v161','theme-christmas-v161');document.getElementById('seasonalBannerV161')?.remove();if(!theme)return;document.body.classList.add(`theme-${theme}-v161`);const banner=document.createElement('div');banner.id='seasonalBannerV161';banner.className='seasonal-banner-v161';banner.textContent=copy;document.querySelector('.topbar')?.insertAdjacentElement('afterend',banner)}
+function v161ApplySeasonalTheme(){const now=new Date(),month=now.getMonth()+1,day=now.getDate();let theme='';if((month===10&&day>=25)||(month===11&&day===1))theme='halloween';else if(month===11)theme='thanksgiving';else if(month===12)theme='christmas';document.body.classList.remove('theme-halloween-v161','theme-thanksgiving-v161','theme-christmas-v161');document.getElementById('seasonalBannerV161')?.remove();if(theme)document.body.classList.add(`theme-${theme}-v161`)}
 v161ApplySeasonalTheme();
 
 bootstrap();
@@ -7781,7 +7781,7 @@ bootstrap();
 <script>
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
-    navigator.serviceWorker.register('./service-worker.js?v=161', {updateViaCache:'none'}).then(reg => reg.update()).catch(() => {});
+    navigator.serviceWorker.register('./service-worker.js?v=162', {updateViaCache:'none'}).then(reg => reg.update()).catch(() => {});
   });
 }
 </script>
@@ -8846,83 +8846,3 @@ body.theme-christmas-v161 .topbar{border-bottom-color:#2f9a60}
 @media(max-width:620px){.v119-gd-grid{grid-template-columns:1fr}.seasonal-banner-v161{font-size:8px;letter-spacing:.9px}}
 </style>
 
-<script type="text/plain" id="v161-seasonal-ranks-score-race-js-legacy-copy">
-(function(){
-  /* Implementation lives inside the main application closure above. */
-  return;
-  function teamStatV161(team,base){
-    const s=team?.roster?.settings||{};
-    const whole=Number(s[base]??0),decimal=Number(s[base+'_decimal']??0)/100;
-    return whole+decimal;
-  }
-  function leagueRankV161(team,base,highWins){
-    const mine=teamStatV161(team,base);
-    const better=(state.teams||[]).filter(other=>{
-      const value=teamStatV161(other,base);
-      return highWins?value>mine:value<mine;
-    }).length;
-    return better+1;
-  }
-  function addFranchisePointRanksV161(team){
-    if(!team)return;
-    const total=(state.teams||[]).length||10;
-    document.querySelectorAll('#teamContent .franchise-record').forEach(card=>{
-      const label=card.querySelector('.label')?.textContent?.trim().toLowerCase();
-      if(label!=='points for'&&label!=='points against')return;
-      card.querySelector('.franchise-points-rank-v161')?.remove();
-      const isFor=label==='points for';
-      const rank=leagueRankV161(team,isFor?'fpts':'fpts_against',isFor);
-      const badge=document.createElement('div');
-      badge.className='franchise-points-rank-v161';
-      badge.textContent=`#${rank} / ${total} • ${isFor?'PF':'PA'} rank`;
-      badge.title=isFor?'League rank by total Points For':'League rank by Points Against; the fewest points allowed ranks #1';
-      card.appendChild(badge);
-    });
-  }
-  if(typeof renderFranchisePage==='function'){
-    const baseFranchiseV161=renderFranchisePage;
-    renderFranchisePage=function(name){
-      const out=baseFranchiseV161(name),team=franchiseTeam(name);
-      const apply=()=>addFranchisePointRanksV161(team);
-      apply();requestAnimationFrame(apply);setTimeout(apply,250);
-      return out;
-    };
-  }
-
-  function ensureScoreRaceCardV161(){
-    const grid=document.querySelector('#lsdGamedayV119 .v119-gd-grid');
-    if(!grid||document.getElementById('v161HighScoreRace'))return;
-    const card=document.createElement('div');
-    card.className='v119-gd-card v161-score-race';
-    card.innerHTML='<div class="v119-gd-label">Highest Score Race</div><div class="v119-gd-value" id="v161HighScoreRace">Waiting for live scoring.</div>';
-    grid.appendChild(card);
-  }
-  function updateScoreRaceV161(){
-    ensureScoreRaceCardV161();
-    const target=document.getElementById('v161HighScoreRace');if(!target)return;
-    const scores=(state.matchups||[]).map(m=>({team:teamByRoster(m.roster_id),points:Number(m.points||0)})).filter(x=>x.team).sort((a,b)=>b.points-a.points);
-    if(!scores.some(x=>x.points>0)){target.textContent='Waiting for live scoring.';return;}
-    target.innerHTML=scores.slice(0,3).map((x,i)=>`<span class="v161-race-row"><span class="v161-race-rank">#${i+1}</span><span class="v161-race-team">${esc(x.team.name)}</span><strong class="v161-race-points">${x.points.toFixed(1)}</strong></span>`).join('');
-  }
-  ensureScoreRaceCardV161();updateScoreRaceV161();
-  if(typeof v119Gameday==='function'){
-    const baseGamedayV161=v119Gameday;
-    v119Gameday=function(){ensureScoreRaceCardV161();const out=baseGamedayV161();updateScoreRaceV161();return out;};
-  }
-
-  function applySeasonalThemeV161(){
-    const now=new Date(),month=now.getMonth()+1,day=now.getDate();
-    let theme='',copy='';
-    if((month===10&&day>=25)||(month===11&&day===1)){theme='halloween';copy='🎃 Lone Star Halloween • Welcome to the nightmare weeks';}
-    else if(month===11){theme='thanksgiving';copy='🦃 Lone Star Thanksgiving • Come hungry, leave with a win';}
-    else if(month===12){theme='christmas';copy='🎄 Lone Star Christmas • Wins, rivalries and holiday bragging rights';}
-    document.body.classList.remove('theme-halloween-v161','theme-thanksgiving-v161','theme-christmas-v161');
-    document.getElementById('seasonalBannerV161')?.remove();
-    if(!theme)return;
-    document.body.classList.add(`theme-${theme}-v161`);
-    const banner=document.createElement('div');banner.id='seasonalBannerV161';banner.className='seasonal-banner-v161';banner.textContent=copy;
-    document.querySelector('.topbar')?.insertAdjacentElement('afterend',banner);
-  }
-  applySeasonalThemeV161();
-})();
-</script>
