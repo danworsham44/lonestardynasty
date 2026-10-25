@@ -1,4 +1,4 @@
-const CACHE_NAME = 'lone-star-dynasty-v160-memorial-image-repair';
+const CACHE_NAME = 'lone-star-dynasty-v161-seasonal-ranks-score-race';
 const APP_SHELL = [
   './',
   './index.html',

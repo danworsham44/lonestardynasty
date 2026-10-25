@@ -13,7 +13,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
 <meta name="mobile-web-app-capable" content="yes" />
 <meta name="application-name" content="Lone Star Dynasty" />
-<meta name="lsd-build" content="v160" />
+<meta name="lsd-build" content="v161" />
 <title>Lone Star Dynasty</title>
 <style>
 :root{--ink:#07101a;--ink2:#0d1824;--panel:rgba(10,18,28,.91);--paper:#efe4cc;--muted:#aeb7c2;--red:#c83632;--red2:#8d201f;--line:rgba(239,228,204,.18);--gold:#c49a47;--green:#64b76d;--shadow:0 18px 50px rgba(0,0,0,.34)}
@@ -7758,13 +7758,30 @@ if(typeof renderOrderV20==='function'){const baseOrderV145=renderOrderV20;render
 const baseStandingsV145=renderStandings;
 renderStandings=function(){baseStandingsV145();v145CombineStandings();v145AnnotateDraftMovement();v149AnnotateStandingsMovement()};
 
+/* V161 — live top-three score race, PF/PA league ranks and calendar themes. */
+function v161TeamStat(team,base){const s=team?.roster?.settings||{};return Number(s[base]??0)+Number(s[base+'_decimal']??0)/100}
+function v161LeagueRank(team,base,highWins){const mine=v161TeamStat(team,base);return 1+(state.teams||[]).filter(other=>highWins?v161TeamStat(other,base)>mine:v161TeamStat(other,base)<mine).length}
+function v161AddFranchisePointRanks(team){
+ if(!team)return;const total=(state.teams||[]).length||10;
+ document.querySelectorAll('#teamContent .franchise-record').forEach(card=>{const label=card.querySelector('.label')?.textContent?.trim().toLowerCase();if(label!=='points for'&&label!=='points against')return;card.querySelector('.franchise-points-rank-v161')?.remove();const isFor=label==='points for',rank=v161LeagueRank(team,isFor?'fpts':'fpts_against',isFor),badge=document.createElement('div');badge.className='franchise-points-rank-v161';badge.textContent=`#${rank} / ${total} • ${isFor?'PF':'PA'} rank`;badge.title=isFor?'League rank by total Points For':'League rank by Points Against; the fewest points allowed ranks #1';card.appendChild(badge)})
+}
+const baseFranchiseV161=renderFranchisePage;
+renderFranchisePage=function(name){const out=baseFranchiseV161(name),team=franchiseTeam(name),apply=()=>v161AddFranchisePointRanks(team);apply();requestAnimationFrame(apply);setTimeout(apply,250);return out};
+function v161EnsureScoreRaceCard(){const grid=document.querySelector('#lsdGamedayV119 .v119-gd-grid');if(!grid||document.getElementById('v161HighScoreRace'))return;const card=document.createElement('div');card.className='v119-gd-card v161-score-race';card.innerHTML='<div class="v119-gd-label">Highest Score Race</div><div class="v119-gd-value" id="v161HighScoreRace">Waiting for live scoring.</div>';grid.appendChild(card)}
+function v161UpdateScoreRace(){v161EnsureScoreRaceCard();const target=document.getElementById('v161HighScoreRace');if(!target)return;const scores=(state.matchups||[]).map(m=>({team:teamByRoster(m.roster_id),points:Number(m.points||0)})).filter(x=>x.team).sort((a,b)=>b.points-a.points);if(!scores.some(x=>x.points>0)){target.textContent='Waiting for live scoring.';return}target.innerHTML=scores.slice(0,3).map((x,i)=>`<span class="v161-race-row"><span class="v161-race-rank">#${i+1}</span><span class="v161-race-team">${esc(x.team.name)}</span><strong class="v161-race-points">${x.points.toFixed(1)}</strong></span>`).join('')}
+v161EnsureScoreRaceCard();v161UpdateScoreRace();
+const baseGamedayV161=v119Gameday;
+v119Gameday=function(){v161EnsureScoreRaceCard();const out=baseGamedayV161();v161UpdateScoreRace();return out};
+function v161ApplySeasonalTheme(){const now=new Date(),month=now.getMonth()+1,day=now.getDate();let theme='',copy='';if((month===10&&day>=25)||(month===11&&day===1)){theme='halloween';copy='🎃 Lone Star Halloween • Welcome to the nightmare weeks'}else if(month===11){theme='thanksgiving';copy='🦃 Lone Star Thanksgiving • Come hungry, leave with a win'}else if(month===12){theme='christmas';copy='🎄 Lone Star Christmas • Wins, rivalries and holiday bragging rights'}document.body.classList.remove('theme-halloween-v161','theme-thanksgiving-v161','theme-christmas-v161');document.getElementById('seasonalBannerV161')?.remove();if(!theme)return;document.body.classList.add(`theme-${theme}-v161`);const banner=document.createElement('div');banner.id='seasonalBannerV161';banner.className='seasonal-banner-v161';banner.textContent=copy;document.querySelector('.topbar')?.insertAdjacentElement('afterend',banner)}
+v161ApplySeasonalTheme();
+
 bootstrap();
 })();</script>
 
 <script>
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
-    navigator.serviceWorker.register('./service-worker.js?v=160', {updateViaCache:'none'}).then(reg => reg.update()).catch(() => {});
+    navigator.serviceWorker.register('./service-worker.js?v=161', {updateViaCache:'none'}).then(reg => reg.update()).catch(() => {});
   });
 }
 </script>
@@ -8800,5 +8817,112 @@ if ('serviceWorker' in navigator) {
  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',run);else run();
  let queued=false;const mo=new MutationObserver(()=>{if(queued)return;queued=true;requestAnimationFrame(()=>{queued=false;enhance(document)});});
  mo.observe(document.documentElement,{childList:true,subtree:true});
+})();
+</script>
+
+<style id="v161-seasonal-ranks-score-race">
+/* V161 — live top-three scoring race, franchise PF/PA league ranks, and automatic seasonal presentation. */
+.v119-gd-grid{grid-template-columns:repeat(4,minmax(0,1fr))}
+.v161-score-race .v119-gd-value{display:grid;gap:5px;font-size:11px}
+.v161-race-row{display:grid;grid-template-columns:18px minmax(0,1fr) auto;gap:6px;align-items:center;padding-bottom:4px;border-bottom:1px solid rgba(255,255,255,.08)}
+.v161-race-row:last-child{padding-bottom:0;border-bottom:0}.v161-race-rank{color:#f0bd55}.v161-race-team{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.v161-race-points{color:#f7f0df}
+.franchise-points-rank-v161{display:inline-flex;align-items:center;margin-top:8px;padding:4px 7px;border:1px solid rgba(103,201,133,.52);background:rgba(103,201,133,.08);border-color:color-mix(in srgb,var(--team-accent,#67c985) 68%,transparent);background:color-mix(in srgb,var(--team-accent,#67c985) 10%,transparent);color:var(--paper);font-size:8px;font-weight:1000;letter-spacing:.65px;text-transform:uppercase}
+.seasonal-banner-v161{position:relative;z-index:3;display:flex;align-items:center;justify-content:center;gap:8px;min-height:34px;padding:8px 14px;border-bottom:1px solid currentColor;text-align:center;font-size:9px;font-weight:1000;letter-spacing:1.35px;text-transform:uppercase}
+body.theme-halloween-v161{--red:#df6b18;--red2:#ff8f24;--gold:#b67cff}
+body.theme-halloween-v161 .app{background-image:radial-gradient(circle at 8% 6%,rgba(224,100,18,.12),transparent 22%),radial-gradient(circle at 91% 18%,rgba(117,60,177,.12),transparent 24%)}
+body.theme-halloween-v161 .seasonal-banner-v161{color:#ffb45c;background:linear-gradient(90deg,#180c21,#30110b,#180c21);box-shadow:inset 0 -1px rgba(157,81,218,.35)}
+body.theme-halloween-v161 .topbar{border-bottom-color:#df6b18}
+body.theme-halloween-v161 #lsdGamedayV119{border-color:rgba(223,107,24,.72);border-left-color:#8f48c4;background:linear-gradient(110deg,rgba(62,25,5,.95),rgba(19,8,27,.97))}
+body.theme-halloween-v161 .v119-gd-live,body.theme-halloween-v161 .v119-ticker-tag{background:#7b3aa7}
+body.theme-thanksgiving-v161{--red:#a54c24;--red2:#d8702f;--gold:#e3aa55}
+body.theme-thanksgiving-v161 .app{background-image:radial-gradient(circle at 10% 8%,rgba(182,91,35,.12),transparent 24%),radial-gradient(circle at 90% 18%,rgba(213,154,56,.09),transparent 24%)}
+body.theme-thanksgiving-v161 .seasonal-banner-v161{color:#f2cb83;background:linear-gradient(90deg,#241008,#52210d,#241008)}
+body.theme-thanksgiving-v161 .topbar{border-bottom-color:#b85b29}
+body.theme-christmas-v161{--red:#bf252f;--red2:#e23c46;--gold:#d7b65d}
+body.theme-christmas-v161 .app{background-image:radial-gradient(circle at 8% 8%,rgba(35,129,76,.13),transparent 24%),radial-gradient(circle at 92% 17%,rgba(191,37,47,.12),transparent 24%)}
+body.theme-christmas-v161 .seasonal-banner-v161{color:#f3e2b6;background:linear-gradient(90deg,#09271b,#6a1118,#09271b)}
+body.theme-christmas-v161 .topbar{border-bottom-color:#2f9a60}
+@media(max-width:900px){.v119-gd-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:620px){.v119-gd-grid{grid-template-columns:1fr}.seasonal-banner-v161{font-size:8px;letter-spacing:.9px}}
+</style>
+
+<script type="text/plain" id="v161-seasonal-ranks-score-race-js-legacy-copy">
+(function(){
+  /* Implementation lives inside the main application closure above. */
+  return;
+  function teamStatV161(team,base){
+    const s=team?.roster?.settings||{};
+    const whole=Number(s[base]??0),decimal=Number(s[base+'_decimal']??0)/100;
+    return whole+decimal;
+  }
+  function leagueRankV161(team,base,highWins){
+    const mine=teamStatV161(team,base);
+    const better=(state.teams||[]).filter(other=>{
+      const value=teamStatV161(other,base);
+      return highWins?value>mine:value<mine;
+    }).length;
+    return better+1;
+  }
+  function addFranchisePointRanksV161(team){
+    if(!team)return;
+    const total=(state.teams||[]).length||10;
+    document.querySelectorAll('#teamContent .franchise-record').forEach(card=>{
+      const label=card.querySelector('.label')?.textContent?.trim().toLowerCase();
+      if(label!=='points for'&&label!=='points against')return;
+      card.querySelector('.franchise-points-rank-v161')?.remove();
+      const isFor=label==='points for';
+      const rank=leagueRankV161(team,isFor?'fpts':'fpts_against',isFor);
+      const badge=document.createElement('div');
+      badge.className='franchise-points-rank-v161';
+      badge.textContent=`#${rank} / ${total} • ${isFor?'PF':'PA'} rank`;
+      badge.title=isFor?'League rank by total Points For':'League rank by Points Against; the fewest points allowed ranks #1';
+      card.appendChild(badge);
+    });
+  }
+  if(typeof renderFranchisePage==='function'){
+    const baseFranchiseV161=renderFranchisePage;
+    renderFranchisePage=function(name){
+      const out=baseFranchiseV161(name),team=franchiseTeam(name);
+      const apply=()=>addFranchisePointRanksV161(team);
+      apply();requestAnimationFrame(apply);setTimeout(apply,250);
+      return out;
+    };
+  }
+
+  function ensureScoreRaceCardV161(){
+    const grid=document.querySelector('#lsdGamedayV119 .v119-gd-grid');
+    if(!grid||document.getElementById('v161HighScoreRace'))return;
+    const card=document.createElement('div');
+    card.className='v119-gd-card v161-score-race';
+    card.innerHTML='<div class="v119-gd-label">Highest Score Race</div><div class="v119-gd-value" id="v161HighScoreRace">Waiting for live scoring.</div>';
+    grid.appendChild(card);
+  }
+  function updateScoreRaceV161(){
+    ensureScoreRaceCardV161();
+    const target=document.getElementById('v161HighScoreRace');if(!target)return;
+    const scores=(state.matchups||[]).map(m=>({team:teamByRoster(m.roster_id),points:Number(m.points||0)})).filter(x=>x.team).sort((a,b)=>b.points-a.points);
+    if(!scores.some(x=>x.points>0)){target.textContent='Waiting for live scoring.';return;}
+    target.innerHTML=scores.slice(0,3).map((x,i)=>`<span class="v161-race-row"><span class="v161-race-rank">#${i+1}</span><span class="v161-race-team">${esc(x.team.name)}</span><strong class="v161-race-points">${x.points.toFixed(1)}</strong></span>`).join('');
+  }
+  ensureScoreRaceCardV161();updateScoreRaceV161();
+  if(typeof v119Gameday==='function'){
+    const baseGamedayV161=v119Gameday;
+    v119Gameday=function(){ensureScoreRaceCardV161();const out=baseGamedayV161();updateScoreRaceV161();return out;};
+  }
+
+  function applySeasonalThemeV161(){
+    const now=new Date(),month=now.getMonth()+1,day=now.getDate();
+    let theme='',copy='';
+    if((month===10&&day>=25)||(month===11&&day===1)){theme='halloween';copy='🎃 Lone Star Halloween • Welcome to the nightmare weeks';}
+    else if(month===11){theme='thanksgiving';copy='🦃 Lone Star Thanksgiving • Come hungry, leave with a win';}
+    else if(month===12){theme='christmas';copy='🎄 Lone Star Christmas • Wins, rivalries and holiday bragging rights';}
+    document.body.classList.remove('theme-halloween-v161','theme-thanksgiving-v161','theme-christmas-v161');
+    document.getElementById('seasonalBannerV161')?.remove();
+    if(!theme)return;
+    document.body.classList.add(`theme-${theme}-v161`);
+    const banner=document.createElement('div');banner.id='seasonalBannerV161';banner.className='seasonal-banner-v161';banner.textContent=copy;
+    document.querySelector('.topbar')?.insertAdjacentElement('afterend',banner);
+  }
+  applySeasonalThemeV161();
 })();
 </script>
