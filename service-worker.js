@@ -1,4 +1,4 @@
-const CACHE_NAME = 'lone-star-dynasty-v164-header-halloween';
+const CACHE_NAME = 'lone-star-dynasty-v165-halloween-scene';
 const APP_SHELL = [
   './',
   './index.html',
@@ -9,7 +9,8 @@ const APP_SHELL = [
   './icon-192.png',
   './icon-512.png',
   './lone-star-logo.jpg',
-  './miguel-mendoza-memorial.jpg'
+  './miguel-mendoza-memorial.jpg',
+  './halloween-scene-v165.png'
 ];
 
 self.addEventListener('install', event => {

@@ -13,7 +13,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
 <meta name="mobile-web-app-capable" content="yes" />
 <meta name="application-name" content="Lone Star Dynasty" />
-<meta name="lsd-build" content="v164" />
+<meta name="lsd-build" content="v165" />
 <title>Lone Star Dynasty</title>
 <style>
 :root{--ink:#07101a;--ink2:#0d1824;--panel:rgba(10,18,28,.91);--paper:#efe4cc;--muted:#aeb7c2;--red:#c83632;--red2:#8d201f;--line:rgba(239,228,204,.18);--gold:#c49a47;--green:#64b76d;--shadow:0 18px 50px rgba(0,0,0,.34)}
@@ -7837,10 +7837,10 @@ function v164HalloweenWelcome(){
  const parts=new Intl.DateTimeFormat('en-US',{timeZone:'America/Chicago',month:'numeric',day:'numeric'}).formatToParts(new Date()),month=Number(parts.find(x=>x.type==='month').value),day=Number(parts.find(x=>x.type==='day').value);
  if(!((month===10&&day>=25)||(month===11&&day===1))||!document.querySelector('#homePage.active')||document.getElementById('halloweenWelcomeV164'))return;
  const welcome=document.createElement('div');welcome.id='halloweenWelcomeV164';welcome.className='halloween-welcome-v164';welcome.setAttribute('role','dialog');welcome.setAttribute('aria-label','Happy Halloween - Lone Star Dynasty');
- welcome.innerHTML=`<div class="h164-smoke h164-smoke-a" aria-hidden="true"></div><div class="h164-smoke h164-smoke-b" aria-hidden="true"></div><div class="h164-welcome-content"><svg class="h164-pumpkin" viewBox="0 0 260 235" aria-hidden="true"><defs><radialGradient id="h164skin"><stop stop-color="#ff9b27"/><stop offset="1" stop-color="#9c300b"/></radialGradient></defs><path d="M126 49 Q111 15 151 7 L159 24 Q135 24 143 51" fill="#6b7839"/><ellipse cx="130" cy="133" rx="110" ry="91" fill="url(#h164skin)"/><ellipse cx="130" cy="133" rx="69" ry="91" fill="none" stroke="#862708" stroke-width="5" opacity=".4"/><ellipse cx="130" cy="133" rx="30" ry="91" fill="none" stroke="#862708" stroke-width="4" opacity=".35"/><g fill="#ffe7a0" stroke="#5c1e09" stroke-width="5"><path d="M65 115 L103 84 L110 124 Z"/><path d="M150 124 L157 84 L195 115 Z"/><path d="M118 144 L130 123 L143 144 Z"/><path d="M58 153 L82 168 L91 156 L108 176 L129 161 L149 176 L168 156 L179 166 L202 151 Q177 217 130 204 Q82 209 58 153 Z"/></g></svg><h2>Happy Halloween</h2><p>- Lone Star Dynasty</p><button type="button" class="h164-dismiss">Enter the league</button></div>`;
+ welcome.innerHTML=`<img class="h165-scene" src="halloween-scene-v165.png" alt="A moonlit Halloween gathering with glowing pumpkins, skeletons, a werewolf, vampire, ghosts and ghouls"><div class="h165-shade" aria-hidden="true"></div><div class="h165-smoke h165-smoke-a" aria-hidden="true"></div><div class="h165-smoke h165-smoke-b" aria-hidden="true"></div><div class="h165-smoke h165-smoke-c" aria-hidden="true"></div><div class="h164-welcome-content h165-greeting"><h2>Happy Halloween</h2><p>- Lone Star Dynasty</p><button type="button" class="h164-dismiss">Enter the league</button></div>`;
  const previous=document.activeElement;let timer;
  const dismiss=()=>{if(!welcome.isConnected)return;clearTimeout(timer);welcome.remove();document.removeEventListener('keydown',escape);if(document.activeElement===document.body&&previous?.isConnected)previous.focus({preventScroll:true})};
- const escape=e=>{if(e.key==='Escape')dismiss()};welcome.querySelector('button').onclick=dismiss;welcome.addEventListener('click',e=>{if(e.target===welcome)dismiss()});document.addEventListener('keydown',escape);document.body.appendChild(welcome);welcome.querySelector('button').focus({preventScroll:true});timer=setTimeout(dismiss,window.matchMedia('(prefers-reduced-motion: reduce)').matches?2500:3800);
+ const escape=e=>{if(e.key==='Escape')dismiss()};welcome.querySelector('button').onclick=dismiss;welcome.addEventListener('click',e=>{if(e.target===welcome)dismiss()});document.addEventListener('keydown',escape);document.body.appendChild(welcome);welcome.querySelector('button').focus({preventScroll:true});const image=welcome.querySelector('.h165-scene');let started=false;const reveal=()=>{if(started||!welcome.isConnected)return;started=true;clearTimeout(timer);welcome.classList.add('h165-ready');timer=setTimeout(dismiss,window.matchMedia('(prefers-reduced-motion: reduce)').matches?4000:7000)};image.onload=reveal;image.onerror=reveal;timer=setTimeout(dismiss,12000);if(image.complete)reveal();
 }
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>{v164MeasureHeader();v164HalloweenWelcome()},{once:true});else v164HalloweenWelcome();
 
@@ -7850,7 +7850,7 @@ bootstrap();
 <script>
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
-    navigator.serviceWorker.register('./service-worker.js?v=164', {updateViaCache:'none'}).then(reg => reg.update()).catch(() => {});
+    navigator.serviceWorker.register('./service-worker.js?v=165', {updateViaCache:'none'}).then(reg => reg.update()).catch(() => {});
   });
 }
 </script>
@@ -8907,6 +8907,26 @@ html{scroll-padding-top:calc(var(--lsd-header-height) + 16px)}
 @keyframes h164-arrive{from{opacity:0}to{opacity:1}}@keyframes h164-float{50%{transform:translateY(-9px)}}@keyframes h164-smoke{from{transform:translate(-8%,20%) scale(.8);opacity:0}35%{opacity:1}to{transform:translate(18%,-65%) scale(1.4);opacity:0}}
 @media(prefers-reduced-motion:reduce){.halloween-welcome-v164,.h164-pumpkin,.h164-smoke{animation:none!important}.h164-smoke{opacity:.5}}
 /* V161 — live top-three scoring race, franchise PF/PA league ranks, and automatic seasonal presentation. */
+/* V165: cinematic artwork revealed by three independently sweeping fog banks. */
+.halloween-welcome-v164{background:#070810;padding:0;isolation:isolate}
+.h165-scene{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:center 40%;opacity:0;transform:scale(1.06);transition:opacity 1.5s ease,transform 7s ease-out}
+.h165-ready .h165-scene{opacity:1;transform:scale(1)}
+.h165-shade{position:absolute;inset:0;z-index:1;background:linear-gradient(180deg,rgba(4,6,12,.04) 40%,rgba(4,6,12,.24) 62%,rgba(4,6,12,.97) 100%);pointer-events:none}
+.h165-greeting{position:absolute;z-index:4;bottom:max(24px,env(safe-area-inset-bottom));left:16px;right:16px;max-width:none;animation:none}
+.h165-greeting h2{font-size:clamp(34px,9vw,72px);text-shadow:0 3px 6px #000,0 0 24px #ff7b18;opacity:0;transform:translateY(10px)}
+.h165-greeting p{margin:7px 0 16px;text-shadow:0 2px 5px #000;opacity:0}
+.h165-ready .h165-greeting h2{animation:h165-title 1.2s 1s ease-out both}.h165-ready .h165-greeting p{animation:h165-title 1.2s 1.3s ease-out both}
+.h165-greeting .h164-dismiss{background:rgba(7,8,16,.8);backdrop-filter:blur(8px);font-size:12px;padding:10px 18px}
+.h165-smoke{position:absolute;z-index:3;pointer-events:none;inset:-20%;opacity:.95;filter:blur(22px);background:radial-gradient(ellipse at 20% 35%,#78808d 0,rgba(118,126,142,.88) 12%,transparent 45%),radial-gradient(ellipse at 60% 60%,#515667 0,rgba(94,97,114,.94) 18%,transparent 55%),radial-gradient(ellipse at 90% 20%,#898c9b 0,transparent 48%);transform:translateX(-5%)}
+.h165-smoke-b{inset:-35%;opacity:.75;filter:blur(38px);transform:translateX(8%) scale(1.1)}
+.h165-smoke-c{inset:30% -70% -30%;opacity:.55;filter:blur(26px);background:radial-gradient(ellipse,rgba(180,158,136,.75),rgba(120,128,153,.65) 25%,transparent 65%)}
+.h165-ready .h165-smoke-a{animation:h165-sweep-right 4s ease-in-out both}.h165-ready .h165-smoke-b{animation:h165-sweep-left 4.8s .2s ease-in-out both}.h165-ready .h165-smoke-c{animation:h165-low-fog 7s ease-out both}
+@keyframes h165-sweep-right{0%{opacity:.95;transform:translateX(-5%)}100%{opacity:0;transform:translateX(110%) scale(1.2)}}
+@keyframes h165-sweep-left{0%{opacity:.8;transform:translateX(8%) scale(1.1)}100%{opacity:0;transform:translateX(-110%) scale(1.35)}}
+@keyframes h165-low-fog{0%{opacity:.7;transform:translateX(-30%)}100%{opacity:.14;transform:translateX(25%)}}
+@keyframes h165-title{to{opacity:1;transform:translateY(0)}}
+@media(min-aspect-ratio:1/1){.h165-scene{object-fit:contain;background:#070810}.h165-greeting{bottom:20px}.h165-greeting h2{font-size:clamp(30px,6vh,60px)}}
+@media(prefers-reduced-motion:reduce){.h165-scene{transition:none;transform:none}.h165-smoke{display:none}.h165-ready .h165-greeting h2,.h165-ready .h165-greeting p{animation:none;opacity:1;transform:none}}
 .v119-gd-grid{grid-template-columns:repeat(4,minmax(0,1fr))}
 .v161-score-race .v119-gd-value{display:grid;gap:5px;font-size:11px}
 .v161-race-row{display:grid;grid-template-columns:18px minmax(0,1fr) auto;gap:6px;align-items:center;padding-bottom:4px;border-bottom:1px solid rgba(255,255,255,.08)}
