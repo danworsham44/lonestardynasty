@@ -13,7 +13,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
 <meta name="mobile-web-app-capable" content="yes" />
 <meta name="application-name" content="Lone Star Dynasty" />
-<meta name="lsd-build" content="v163" />
+<meta name="lsd-build" content="v164" />
 <title>Lone Star Dynasty</title>
 <style>
 :root{--ink:#07101a;--ink2:#0d1824;--panel:rgba(10,18,28,.91);--paper:#efe4cc;--muted:#aeb7c2;--red:#c83632;--red2:#8d201f;--line:rgba(239,228,204,.18);--gold:#c49a47;--green:#64b76d;--shadow:0 18px 50px rgba(0,0,0,.34)}
@@ -876,7 +876,7 @@ function pct(r){const s=r.settings||{},g=(s.wins||0)+(s.losses||0)+(s.ties||0);r
 function teamByRoster(id){return state.teams.find(t=>Number(t.roster.roster_id)===Number(id))}
 function teamByOwner(id){return state.teams.find(t=>String(t.user?.user_id)===String(id))}
 function rankRow(i,t,right,sub=''){const detail=sub||`Owner: ${esc(t.owner)}`;return `<div class="rank-row franchise-link-v149" data-franchise-roster="${Number(t?.roster?.roster_id||0)}" role="button" tabindex="0" aria-label="Open ${esc(t.name)} franchise profile"><div class="rank-num">${i+1}</div><img class="mini-logo" src="${esc(t.avatar)}" onerror="imgFallback(this)" alt="${esc(t.name)} avatar"><div class="team-line"><strong>${esc(t.name)}</strong><small>${detail}</small></div><div class="stat">${right}</div></div>`}
-function showPage(id){document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));$(id).classList.add('active');window.scrollTo({top:0,behavior:'smooth'});closeMenus()}
+function showPage(id){document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));$(id).classList.add('active');window.scrollTo({top:0,behavior:'instant'});requestAnimationFrame(()=>window.scrollTo({top:0,behavior:'instant'}));closeMenus()}
 function closeMenus(){['#teamsMenu','#toolsMenu'].forEach(s=>$(s).classList.remove('open'));$('#teamsBtn').setAttribute('aria-expanded','false');$('#toolsBtn').setAttribute('aria-expanded','false')}
 function freshApiUrl(url){if(!String(url).includes('api.sleeper.app'))return url;const sep=String(url).includes('?')?'&':'?';return `${url}${sep}_lsd_sync=${Date.now()}_${Math.random().toString(36).slice(2,8)}`}
 async function getJSON(url){const requestUrl=freshApiUrl(url);const r=await fetch(requestUrl,{cache:'no-store'});if(!r.ok)throw new Error(`${r.status} ${url}`);return r.json()}
@@ -7825,13 +7825,32 @@ renderMOTW=function(){
  }).catch(()=>{const note=document.getElementById('motwNote');if(note)note.textContent='Matchup history is temporarily unavailable. Refresh to retry.'});
 };
 
+/* V164: reserve the actual navigation height, including wrapped mobile branding. */
+function v164MeasureHeader(){const header=document.querySelector('.topbar');if(header)document.documentElement.style.setProperty('--lsd-header-height',`${Math.ceil(header.getBoundingClientRect().height)}px`)}
+v164MeasureHeader();
+if(window.ResizeObserver)new ResizeObserver(v164MeasureHeader).observe(document.querySelector('.topbar'));
+window.addEventListener('resize',v164MeasureHeader);
+window.visualViewport?.addEventListener('resize',v164MeasureHeader);
+document.fonts?.ready.then(v164MeasureHeader);
+window.addEventListener('pageshow',v164MeasureHeader);
+function v164HalloweenWelcome(){
+ const parts=new Intl.DateTimeFormat('en-US',{timeZone:'America/Chicago',month:'numeric',day:'numeric'}).formatToParts(new Date()),month=Number(parts.find(x=>x.type==='month').value),day=Number(parts.find(x=>x.type==='day').value);
+ if(!((month===10&&day>=25)||(month===11&&day===1))||!document.querySelector('#homePage.active')||document.getElementById('halloweenWelcomeV164'))return;
+ const welcome=document.createElement('div');welcome.id='halloweenWelcomeV164';welcome.className='halloween-welcome-v164';welcome.setAttribute('role','dialog');welcome.setAttribute('aria-label','Happy Halloween - Lone Star Dynasty');
+ welcome.innerHTML=`<div class="h164-smoke h164-smoke-a" aria-hidden="true"></div><div class="h164-smoke h164-smoke-b" aria-hidden="true"></div><div class="h164-welcome-content"><svg class="h164-pumpkin" viewBox="0 0 260 235" aria-hidden="true"><defs><radialGradient id="h164skin"><stop stop-color="#ff9b27"/><stop offset="1" stop-color="#9c300b"/></radialGradient></defs><path d="M126 49 Q111 15 151 7 L159 24 Q135 24 143 51" fill="#6b7839"/><ellipse cx="130" cy="133" rx="110" ry="91" fill="url(#h164skin)"/><ellipse cx="130" cy="133" rx="69" ry="91" fill="none" stroke="#862708" stroke-width="5" opacity=".4"/><ellipse cx="130" cy="133" rx="30" ry="91" fill="none" stroke="#862708" stroke-width="4" opacity=".35"/><g fill="#ffe7a0" stroke="#5c1e09" stroke-width="5"><path d="M65 115 L103 84 L110 124 Z"/><path d="M150 124 L157 84 L195 115 Z"/><path d="M118 144 L130 123 L143 144 Z"/><path d="M58 153 L82 168 L91 156 L108 176 L129 161 L149 176 L168 156 L179 166 L202 151 Q177 217 130 204 Q82 209 58 153 Z"/></g></svg><h2>Happy Halloween</h2><p>- Lone Star Dynasty</p><button type="button" class="h164-dismiss">Enter the league</button></div>`;
+ const previous=document.activeElement;let timer;
+ const dismiss=()=>{if(!welcome.isConnected)return;clearTimeout(timer);welcome.remove();document.removeEventListener('keydown',escape);if(document.activeElement===document.body&&previous?.isConnected)previous.focus({preventScroll:true})};
+ const escape=e=>{if(e.key==='Escape')dismiss()};welcome.querySelector('button').onclick=dismiss;welcome.addEventListener('click',e=>{if(e.target===welcome)dismiss()});document.addEventListener('keydown',escape);document.body.appendChild(welcome);welcome.querySelector('button').focus({preventScroll:true});timer=setTimeout(dismiss,window.matchMedia('(prefers-reduced-motion: reduce)').matches?2500:3800);
+}
+if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>{v164MeasureHeader();v164HalloweenWelcome()},{once:true});else v164HalloweenWelcome();
+
 bootstrap();
 })();</script>
 
 <script>
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
-    navigator.serviceWorker.register('./service-worker.js?v=163', {updateViaCache:'none'}).then(reg => reg.update()).catch(() => {});
+    navigator.serviceWorker.register('./service-worker.js?v=164', {updateViaCache:'none'}).then(reg => reg.update()).catch(() => {});
   });
 }
 </script>
@@ -8871,6 +8890,22 @@ if ('serviceWorker' in navigator) {
 </script>
 
 <style id="v161-seasonal-ranks-score-race">
+/* Measured header clearance applies to every page, in-browser and installed. */
+:root{--lsd-header-height:100px}
+html{scroll-padding-top:calc(var(--lsd-header-height) + 16px)}
+.topbar{position:fixed!important;top:0!important;left:50%!important;transform:translateX(-50%)!important;width:min(1500px,100%)!important;margin:0!important}
+.app>main{padding-top:calc(var(--lsd-header-height) + 22px)!important}
+.page{scroll-margin-top:calc(var(--lsd-header-height) + 16px)}
+.halloween-welcome-v164{position:fixed;inset:0;z-index:20000;overflow:hidden;display:grid;place-items:center;padding:24px;background:radial-gradient(ellipse at 50% 60%,rgba(81,32,12,.97),rgba(5,7,12,.98) 72%);animation:h164-arrive .6s ease-out}
+.h164-welcome-content{position:relative;z-index:2;text-align:center;color:#ffe3ab;max-width:600px}
+.h164-pumpkin{display:block;width:min(60vw,260px);margin:0 auto 12px;filter:drop-shadow(0 0 28px rgba(255,129,21,.48));animation:h164-float 3.5s ease-in-out infinite}
+.h164-welcome-content h2{font:italic 900 clamp(38px,9vw,68px)/1.1 Impact,Haettenschweiler,sans-serif;text-transform:uppercase;letter-spacing:1px;margin:0;text-shadow:0 0 25px #b64c13}
+.h164-welcome-content p{font-size:clamp(14px,4vw,22px);font-weight:900;letter-spacing:1.2px;margin:12px 0 24px}
+.h164-dismiss{border:1px solid #e3a55d;background:#19100c;color:#ffe3ab;padding:12px 20px;border-radius:5px;font-weight:900;min-height:44px}.h164-dismiss:focus-visible{outline:3px solid #fff;outline-offset:4px}
+.h164-smoke{position:absolute;width:140vw;height:55vh;left:-20vw;bottom:-15vh;pointer-events:none;filter:blur(30px);border-radius:50%;background:radial-gradient(ellipse,rgba(172,146,165,.24),transparent 65%);animation:h164-smoke 4s ease-out infinite}
+.h164-smoke-b{bottom:5vh;left:-45vw;background:radial-gradient(ellipse,rgba(200,115,51,.22),transparent 65%);animation-delay:-2s}
+@keyframes h164-arrive{from{opacity:0}to{opacity:1}}@keyframes h164-float{50%{transform:translateY(-9px)}}@keyframes h164-smoke{from{transform:translate(-8%,20%) scale(.8);opacity:0}35%{opacity:1}to{transform:translate(18%,-65%) scale(1.4);opacity:0}}
+@media(prefers-reduced-motion:reduce){.halloween-welcome-v164,.h164-pumpkin,.h164-smoke{animation:none!important}.h164-smoke{opacity:.5}}
 /* V161 — live top-three scoring race, franchise PF/PA league ranks, and automatic seasonal presentation. */
 .v119-gd-grid{grid-template-columns:repeat(4,minmax(0,1fr))}
 .v161-score-race .v119-gd-value{display:grid;gap:5px;font-size:11px}

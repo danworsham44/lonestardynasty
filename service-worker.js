@@ -1,4 +1,4 @@
-const CACHE_NAME = 'lone-star-dynasty-v163-consistent-motw';
+const CACHE_NAME = 'lone-star-dynasty-v164-header-halloween';
 const APP_SHELL = [
   './',
   './index.html',
