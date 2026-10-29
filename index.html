@@ -13,7 +13,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
 <meta name="mobile-web-app-capable" content="yes" />
 <meta name="application-name" content="Lone Star Dynasty" />
-<meta name="lsd-build" content="v162" />
+<meta name="lsd-build" content="v163" />
 <title>Lone Star Dynasty</title>
 <style>
 :root{--ink:#07101a;--ink2:#0d1824;--panel:rgba(10,18,28,.91);--paper:#efe4cc;--muted:#aeb7c2;--red:#c83632;--red2:#8d201f;--line:rgba(239,228,204,.18);--gold:#c49a47;--green:#64b76d;--shadow:0 18px 50px rgba(0,0,0,.34)}
@@ -939,7 +939,7 @@ function currentMatchupScore(t){const m=state.matchups.find(x=>Number(x.roster_i
 function renderMOTWCurrentScores(){const a=state.featured?.[0],b=state.featured?.[1];if(!a||!b)return;const ae=$('#motwAStats'),be=$('#motwBStats');if(ae)ae.innerHTML=`<small class="motw-score-label">Current Score</small><strong class="motw-live-score">${esc(currentMatchupScore(a))}</strong>`;if(be)be.innerHTML=`<small class="motw-score-label">Current Score</small><strong class="motw-live-score">${esc(currentMatchupScore(b))}</strong>`;}
 function renderTape(a,b,againstA='—',againstB='—',motwA='—',motwB='—'){const rows=[['Record',rec(a.roster),rec(b.roster)],['Standings','#'+standingRank(a),'#'+standingRank(b)],['Projected Points For',projectedPoints(a),projectedPoints(b)],['Average Points',avgPoints(a),avgPoints(b)],['MOTW Record',motwA,motwB],['Against',againstA,againstB]];return `<div class="motw-tape-shell"><div class="motw-tape-title">Tale of the Tape</div><div class="motw-tape">${rows.map(([label,av,bv])=>`<div class="tape-team-value">${esc(av)}</div><div class="tape-label">${esc(label)}</div><div class="tape-team-value">${esc(bv)}</div>`).join('')}</div></div>`}
 async function motwRecordsV159(a,b){
- let stored=[];try{stored=JSON.parse(localStorage.getItem('lsd-motw-history')||'[]')}catch{}
+ const stored=await v163SharedMOTWHistory();
  const season=String(state.league?.season||'2026'),currentWeek=Number(state.displayWeek||state.week||1),seed=[];
  const overrides=typeof MOTW_COMMISSIONER_OVERRIDES!=='undefined'?MOTW_COMMISSIONER_OVERRIDES?.[season]:null;
  Object.entries(overrides||{}).forEach(([week,pair])=>{if(Number(week)>=currentWeek||!Array.isArray(pair))return;const ta=state.teams.find(t=>norm(t.name)===norm(pair[0])),tb=state.teams.find(t=>norm(t.name)===norm(pair[1]));if(ta&&tb)seed.push({season,week:Number(week),a:ta.name,b:tb.name,aRosterId:Number(ta.roster?.roster_id),bRosterId:Number(tb.roster?.roster_id)})});
@@ -989,14 +989,12 @@ async function motwOutcome(h){
  }catch{return null}
 }
 async function renderMOTWHistory(el){
- let history=[];try{history=JSON.parse(localStorage.getItem('lsd-motw-history')||'[]')}catch{}
- if(!history.length&&state.featured){archiveMOTW(state.featured[0],state.featured[1]);try{history=JSON.parse(localStorage.getItem('lsd-motw-history')||'[]')}catch{}}
+ let history;try{history=await v163SharedMOTWHistory()}catch{el.innerHTML='<div class="empty">Matchup history could not be loaded. Please refresh to retry.</div>';return}
  el.innerHTML=`<article class="card"><div class="card-head"><div class="card-title">Matchup of the Week History</div><div class="card-source">Lone Star Archive</div></div><div class="card-body" id="motwArchiveBody">${history.length?'<div class="empty">Loading archived outcomes…</div>':'<div class="empty">Week 1 will become the first entry in the Matchup of the Week archive.</div>'}</div></article>`;
  if(!history.length)return;
  const enriched=await Promise.all(history.map(async h=>({...h,outcome:await motwOutcome(h)})));
  const body=el.querySelector('#motwArchiveBody');if(!body)return;
  const valid=enriched.filter(h=>!h.outcome?.invalid);
- try{localStorage.setItem('lsd-motw-history',JSON.stringify(valid.map(({outcome,...h})=>h).slice(0,100)))}catch{}
  body.innerHTML=valid.length?valid.map(h=>{const o=h.outcome;const score=o?.played?`${o.aScore.toFixed(2)} — ${o.bScore.toFixed(2)}`:'Scheduled';const result=o?.played?(o.winner==='Tie'?'FINAL • TIE':`FINAL • ${esc(o.winner)} WON`):'Not played yet';return `<div class="feed-item motw-archive-row-v155" role="button" tabindex="0" aria-label="${o?.played?'Open Week '+Number(h.week)+' recap':'Open current Matchup of the Week'}"><div class="feed-time">${esc(h.season)} • Week ${Number(h.week)} • ${result}</div><div class="feed-main" style="display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);gap:12px;align-items:center;margin-top:10px"><div style="display:flex;align-items:center;gap:9px;min-width:0"><img class="mini-logo" src="${esc(h.aAvatar||'lone-star-logo.jpg')}" onerror="imgFallback(this)" alt=""><div><strong>${esc(h.a)}</strong><div style="color:var(--muted);font-size:10px">Owner: ${esc(h.aOwner||'')}</div></div></div><div style="text-align:center"><div style="font-family:Impact;font-size:22px;color:var(--red)">VS</div><div style="font-family:Impact;font-size:18px;margin-top:4px">${score}</div><small class="motw-archive-action-v155">${o?.played?'View recap':'View storyline'}</small></div><div style="display:flex;align-items:center;gap:9px;justify-content:flex-end;min-width:0;text-align:right"><div><strong>${esc(h.b)}</strong><div style="color:var(--muted);font-size:10px">Owner: ${esc(h.bOwner||'')}</div></div><img class="mini-logo" src="${esc(h.bAvatar||'lone-star-logo.jpg')}" onerror="imgFallback(this)" alt=""></div></div></div>`}).join(''):'<div class="empty">No valid Matchup of the Week entries have been archived yet.</div>';
  body.querySelectorAll('.motw-archive-row-v155').forEach((row,i)=>{const open=()=>v155OpenArchiveEntry(valid[i]);row.addEventListener('click',open);row.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();open()}})});
 }
@@ -1839,7 +1837,9 @@ renderFreeAgents=function(el){
 const MOTW_COMMISSIONER_OVERRIDES={
  '2026':{
    1:["Miggy’s Wrench Mafia","Let Me See Them TD’s"],
-   2:["DakstreetBoys","CeeDee Nutz"]
+   2:["DakstreetBoys","CeeDee Nutz"],
+   3:["DemBoyz","Let Me See Them TD’s"],
+   8:["Paper Chaser","Let Me See Them TD’s"]
  }
 };
 function motwCommissionerOverride(){
@@ -7734,10 +7734,12 @@ async function v150RefreshBeltPresentation(games=[]){
   const banner=document.querySelector('.belt-strip-v33');if(banner){banner.querySelector('strong').textContent=`${b.holder} HOLDS THE BELT`;banner.querySelector('span').textContent=last}
  }catch(e){}
 }
+let v163BeltRender=0;
 async function v150MarkBeltGame(){
+ const request=++v163BeltRender;
  const hero=document.getElementById('motw'),a=state.featured?.[0],b=state.featured?.[1];if(!hero||!a||!b)return;
- hero.querySelector('.motw-belt-game-v150')?.remove();
- try{const belt=await v34BeltData(),holder=[a,b].find(t=>norm(t.name)===norm(belt.holder));if(!holder)return;const challenger=holder===a?b:a,badge=document.createElement('div');badge.className='motw-belt-game-v150';badge.innerHTML=`<strong>🏆 BELT MATCH</strong><span>${esc(holder.name)} set to defend belt against ${esc(challenger.name)}</span>`;hero.querySelector('.match-week')?.insertAdjacentElement('beforebegin',badge);const note=document.getElementById('motwNote');if(note)note.textContent='';}catch(e){}
+ hero.querySelectorAll('.motw-belt-game-v150').forEach(el=>el.remove());
+ try{const belt=await v34BeltData();if(request!==v163BeltRender||state.featured?.[0]!==a||state.featured?.[1]!==b)return;hero.querySelectorAll('.motw-belt-game-v150').forEach(el=>el.remove());const holder=[a,b].find(t=>norm(t.name)===norm(belt.holder));if(!holder)return;const challenger=holder===a?b:a,badge=document.createElement('div');badge.className='motw-belt-game-v150';badge.innerHTML=`<strong>🏆 BELT MATCH</strong><span>${esc(holder.name)} set to defend belt against ${esc(challenger.name)}</span>`;hero.querySelector('.match-week')?.insertAdjacentElement('beforebegin',badge);const note=document.getElementById('motwNote');if(note)note.textContent='';}catch(e){}
 }
 function v151RenderTuesdayRecap(){
  const old=document.getElementById('motwTuesdayRecapV151');if(old)old.remove();
@@ -7775,13 +7777,61 @@ v119Gameday=function(){v161EnsureScoreRaceCard();const out=baseGamedayV161();v16
 function v161ApplySeasonalTheme(){const now=new Date(),month=now.getMonth()+1,day=now.getDate();let theme='';if((month===10&&day>=25)||(month===11&&day===1))theme='halloween';else if(month===11)theme='thanksgiving';else if(month===12)theme='christmas';document.body.classList.remove('theme-halloween-v161','theme-thanksgiving-v161','theme-christmas-v161');document.getElementById('seasonalBannerV161')?.remove();if(theme)document.body.classList.add(`theme-${theme}-v161`)}
 v161ApplySeasonalTheme();
 
+/* V163: every browser derives the same archive from completed Sleeper weeks.
+   Explicit commissioner selections take precedence. Unrecorded weeks are
+   reconstructed using standings ENTERING that week, never today's standings.
+   Existing local archives remain untouched as a backup, not a record authority. */
+let v163HistoryCache={key:'',promise:null},v163MOTWRender=0;
+function v163ChooseFeatured(matchups,table,week,season){
+ const groups=new Map();
+ for(const m of matchups){if(m.matchup_id==null)continue;if(!groups.has(m.matchup_id))groups.set(m.matchup_id,[]);groups.get(m.matchup_id).push(m)}
+ const ranked=[...table.values()].sort((a,b)=>b.wins-a.wins||b.ties-a.ties||b.pf-a.pf||a.id-b.id);
+ const ranks=new Map(ranked.map((t,i)=>[t.id,i+1]));
+ const pairs=[...groups.values()].filter(g=>g.length===2).map(g=>g.map(m=>teamByRoster(m.roster_id))).filter(g=>g.every(Boolean));
+ const override=MOTW_COMMISSIONER_OVERRIDES?.[season]?.[week];
+ const fixed=override&&pairs.find(pair=>pair.every(t=>override.some(name=>norm(name)===norm(t.name))));
+ if(fixed)return [...fixed].sort((a,b)=>override.findIndex(n=>norm(n)===norm(a.name))-override.findIndex(n=>norm(n)===norm(b.name)));
+ const quality=pair=>{const [a,b]=pair.map(t=>ranks.get(Number(t.roster.roster_id))||99);return [a+b+Math.abs(a-b)*2,a+b,Math.min(a,b),Math.min(...pair.map(t=>Number(t.roster.roster_id)))]};
+ pairs.sort((a,b)=>{const x=quality(a),y=quality(b);for(let i=0;i<x.length;i++){if(x[i]!==y[i])return x[i]-y[i]}return 0});
+ return pairs[0]||null;
+}
+async function v163SharedMOTWHistory(){
+ if(!state.league||!state.matchups.length||!v143LiveReady)return [];
+ const season=String(state.league.season),week=Number(state.displayWeek||state.week||1),key=`${state.league.league_id}:${season}:${week}`;
+ if(v163HistoryCache.key===key&&v163HistoryCache.promise)return v163HistoryCache.promise;
+ const promise=(async()=>{
+  const weeks=await Promise.all(Array.from({length:week},(_,i)=>i+1).map(async w=>({week:w,ms:w===week?state.matchups:await getJSON(`https://api.sleeper.app/v1/league/${state.league.league_id}/matchups/${w}`)})));
+  const table=new Map(state.teams.map(t=>{const id=Number(t.roster.roster_id);return [id,{id,wins:0,ties:0,pf:0}]})),history=[];
+  for(const item of weeks){
+   if(!Array.isArray(item.ms))throw new Error('Weekly matchup history unavailable');
+   const pair=v163ChooseFeatured(item.ms,table,item.week,season);
+   if(pair){const [a,b]=pair;history.push({season,week:item.week,a:a.name,b:b.name,aRosterId:Number(a.roster.roster_id),bRosterId:Number(b.roster.roster_id),aAvatar:a.avatar,bAvatar:b.avatar,aOwner:a.owner,bOwner:b.owner,source:MOTW_COMMISSIONER_OVERRIDES?.[season]?.[item.week]?'commissioner':'reconstructed'})}
+   for(const m of item.ms){const row=table.get(Number(m.roster_id));if(!row)continue;const opponent=item.ms.find(o=>o.matchup_id===m.matchup_id&&Number(o.roster_id)!==Number(m.roster_id));if(!opponent)continue;const score=Number(m.points||0),other=Number(opponent.points||0);row.pf+=score;if(score>other)row.wins++;else if(score===other&&(score>0||other>0))row.ties++}
+  }
+  return history.sort((a,b)=>b.week-a.week);
+ })();
+ v163HistoryCache={key,promise};
+ try{return await promise}catch(error){if(v163HistoryCache.promise===promise)v163HistoryCache={key:'',promise:null};throw error}
+}
+const v163OldRenderMOTW=renderMOTW;
+renderMOTW=function(){
+ if(!state.league||!state.matchups.length||!v143LiveReady)return v163OldRenderMOTW();
+ const request=++v163MOTWRender,week=Number(state.displayWeek||state.week||1);
+ v163SharedMOTWHistory().then(history=>{
+  if(request!==v163MOTWRender||week!==Number(state.displayWeek||state.week||1))return;
+  const entry=history.find(h=>h.week===week);if(!entry)return;
+  const a=teamByRoster(entry.aRosterId),b=teamByRoster(entry.bRosterId);if(!a||!b)return;
+  setMOTW(a,b);v150MarkBeltGame();v151RenderTuesdayRecap();
+ }).catch(()=>{const note=document.getElementById('motwNote');if(note)note.textContent='Matchup history is temporarily unavailable. Refresh to retry.'});
+};
+
 bootstrap();
 })();</script>
 
 <script>
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
-    navigator.serviceWorker.register('./service-worker.js?v=162', {updateViaCache:'none'}).then(reg => reg.update()).catch(() => {});
+    navigator.serviceWorker.register('./service-worker.js?v=163', {updateViaCache:'none'}).then(reg => reg.update()).catch(() => {});
   });
 }
 </script>
