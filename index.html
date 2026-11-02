@@ -13,7 +13,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
 <meta name="mobile-web-app-capable" content="yes" />
 <meta name="application-name" content="Lone Star Dynasty" />
-<meta name="lsd-build" content="v165" />
+<meta name="lsd-build" content="v166" />
 <title>Lone Star Dynasty</title>
 <style>
 :root{--ink:#07101a;--ink2:#0d1824;--panel:rgba(10,18,28,.91);--paper:#efe4cc;--muted:#aeb7c2;--red:#c83632;--red2:#8d201f;--line:rgba(239,228,204,.18);--gold:#c49a47;--green:#64b76d;--shadow:0 18px 50px rgba(0,0,0,.34)}
@@ -1114,7 +1114,7 @@ function renderPositions(el){
 function playoffEstimate(t){const standings=sortedStandings(),sRank=standings.indexOf(t),rv=rosterValue(t,true)||rosterValue(t,false),max=Math.max(...state.teams.map(x=>rosterValue(x,true)||rosterValue(x,false)),1),strength=rv/max;const base=(1-sRank/Math.max(1,state.teams.length-1))*.58+strength*.42;return Math.max(3,Math.min(97,Math.round(base*100)))}
 function renderPlayoffs(el){const ranks=[...state.teams].map(t=>({...t,chance:playoffEstimate(t)})).sort((a,b)=>b.chance-a.chance);el.innerHTML=`<article class="card"><div class="card-head"><div class="card-title">Playoff Odds</div><div class="card-source">Lone Star estimate powered by standings + FantasyCalc redraft value</div></div><div class="card-body">${ranks.map((t,i)=>rankRow(i,t,`${t.chance}%`,t.chance>=75?'🔥 Strong position':t.chance<=20?'💀 On the ropes':'In Hunt')).join('')}<div style="padding:12px;color:var(--muted);font-size:11px">This is a Lone Star Dynasty projection, not an official FantasyCalc playoff-odds output.</div></div></article>`}
 function renderAllTime(el){
- el.innerHTML=`<article class="card clean-category-card"><div class="card-head clean-category-head"><div class="card-title">Head-to-Head History</div></div><div class="card-body"><div style="display:flex;gap:8px;flex-wrap:wrap;margin:8px 0 14px"><select id="h2hA" class="ghost-btn">${state.teams.map((t,i)=>`<option value="${i}">${esc(t.name)}</option>`).join('')}</select><select id="h2hB" class="ghost-btn">${state.teams.map((t,i)=>`<option value="${i}" ${i===1?'selected':''}>${esc(t.name)}</option>`).join('')}</select><button class="red-btn" id="calcH2H">Calculate</button></div><div id="h2hResult" class="empty">Choose two franchises to calculate their all-time series.</div></div></article><section class="section"><div class="section-head"><h2 class="section-title">League Records</h2><div class="section-kicker">2025 + current Sleeper history</div></div><div class="alltime-record-grid"><article class="card alltime-record-card"><div class="card-body"><div class="pulse-label">Best All-Time Record</div><div id="allTimeBestRecord" class="record-primary">Loading…</div><div id="allTimeBestRecordMeta" class="record-meta"></div></div></article><article class="card alltime-record-card"><div class="card-body"><div class="pulse-label">Highest Week</div><div id="allTimeHighestWeek" class="record-primary">Loading…</div><div id="allTimeHighestWeekMeta" class="record-meta"></div></div></article><article class="card alltime-record-card"><div class="card-body"><div class="pulse-label">Top Performer</div><div id="allTimeTopPerformer" class="record-primary">Loading…</div><div id="allTimeTopPerformerMeta" class="record-meta"></div></div></article><article class="card alltime-record-card"><div class="card-body"><div class="pulse-label">Most All-Time Points</div><div id="allTimeMostPoints" class="record-primary">Loading…</div><div id="allTimeMostPointsMeta" class="record-meta"></div></div></article><article class="card alltime-record-card"><div class="card-body"><div class="pulse-label">Longest Win Streak</div><div id="allTimeWinStreak" class="record-primary">Loading…</div><div id="allTimeWinStreakMeta" class="record-meta"></div></div></article><article class="card alltime-record-card"><div class="card-body"><div class="pulse-label">Longest Losing Streak</div><div id="allTimeLossStreak" class="record-primary">Loading…</div><div id="allTimeLossStreakMeta" class="record-meta"></div></div></article><article class="card alltime-record-card"><div class="card-body"><div class="pulse-label">Biggest Blowout</div><div id="allTimeBlowout" class="record-primary">Loading…</div><div id="allTimeBlowoutMeta" class="record-meta"></div></div></article><article class="card alltime-record-card"><div class="card-body"><div class="pulse-label">Closest Win</div><div id="allTimeClosest" class="record-primary">Loading…</div><div id="allTimeClosestMeta" class="record-meta"></div></div></article></div></section>`;
+ el.innerHTML=`<article class="card clean-category-card"><div class="card-head clean-category-head"><div class="card-title">Head-to-Head History</div></div><div class="card-body"><div style="display:flex;gap:8px;flex-wrap:wrap;margin:8px 0 14px"><select id="h2hA" class="ghost-btn">${state.teams.map((t,i)=>`<option value="${i}">${esc(t.name)}</option>`).join('')}</select><select id="h2hB" class="ghost-btn">${state.teams.map((t,i)=>`<option value="${i}" ${i===1?'selected':''}>${esc(t.name)}</option>`).join('')}</select><button class="red-btn" id="calcH2H">Calculate</button></div><div id="h2hResult" class="empty">Choose two franchises to calculate their all-time series.</div></div></article><section class="section"><div class="section-head"><h2 class="section-title">League Records</h2><div class="section-kicker">2025 + current Sleeper history</div></div><div class="alltime-record-grid"><article class="card alltime-record-card"><div class="card-body"><div class="pulse-label">Best All-Time Record</div><div id="allTimeBestRecord" class="record-primary">Loading…</div><div id="allTimeBestRecordMeta" class="record-meta"></div></div></article><article class="card alltime-record-card"><div class="card-body"><div class="pulse-label">Highest Week</div><div id="allTimeHighestWeek" class="record-primary">Loading…</div><div id="allTimeHighestWeekMeta" class="record-meta"></div></div></article><article class="card alltime-record-card"><div class="card-body"><div class="pulse-label">Lowest Week</div><div id="allTimeLowestWeek" class="record-primary">Loading…</div><div id="allTimeLowestWeekMeta" class="record-meta"></div></div></article><article class="card alltime-record-card"><div class="card-body"><div class="pulse-label">Top Performer</div><div id="allTimeTopPerformer" class="record-primary">Loading…</div><div id="allTimeTopPerformerMeta" class="record-meta"></div></div></article><article class="card alltime-record-card"><div class="card-body"><div class="pulse-label">Most All-Time Points</div><div id="allTimeMostPoints" class="record-primary">Loading…</div><div id="allTimeMostPointsMeta" class="record-meta"></div></div></article><article class="card alltime-record-card"><div class="card-body"><div class="pulse-label">Longest Win Streak</div><div id="allTimeWinStreak" class="record-primary">Loading…</div><div id="allTimeWinStreakMeta" class="record-meta"></div></div></article><article class="card alltime-record-card"><div class="card-body"><div class="pulse-label">Longest Losing Streak</div><div id="allTimeLossStreak" class="record-primary">Loading…</div><div id="allTimeLossStreakMeta" class="record-meta"></div></div></article><article class="card alltime-record-card"><div class="card-body"><div class="pulse-label">Longest Belt Streak</div><div id="allTimeBeltStreak" class="record-primary">Loading…</div><div id="allTimeBeltStreakMeta" class="record-meta"></div></div></article><article class="card alltime-record-card"><div class="card-body"><div class="pulse-label">Successful Belt Defenses</div><div id="allTimeBeltDefenses" class="record-primary">Loading…</div><div id="allTimeBeltDefensesMeta" class="record-meta"></div></div></article><article class="card alltime-record-card"><div class="card-body"><div class="pulse-label">Biggest Blowout</div><div id="allTimeBlowout" class="record-primary">Loading…</div><div id="allTimeBlowoutMeta" class="record-meta"></div></div></article><article class="card alltime-record-card"><div class="card-body"><div class="pulse-label">Closest Win</div><div id="allTimeClosest" class="record-primary">Loading…</div><div id="allTimeClosestMeta" class="record-meta"></div></div></article></div></section>`;
  $('#calcH2H').addEventListener('click',()=>calcHeadToHead(Number($('#h2hA').value),Number($('#h2hB').value)));
  loadAllTimeLeagueRecords();
 }
@@ -1124,11 +1124,11 @@ function currentFranchiseNameForHistorical(lg,r,u){
  const hist=historicalFranchiseName(lg,r,u);const byName=state.teams.find(t=>norm(t.name)===norm(hist));return byName?.name||hist;
 }
 async function loadAllTimeLeagueRecords(){
- const ids={best:$('#allTimeBestRecord'),bestm:$('#allTimeBestRecordMeta'),hi:$('#allTimeHighestWeek'),him:$('#allTimeHighestWeekMeta'),tp:$('#allTimeTopPerformer'),tpm:$('#allTimeTopPerformerMeta'),mp:$('#allTimeMostPoints'),mpm:$('#allTimeMostPointsMeta'),ws:$('#allTimeWinStreak'),wsm:$('#allTimeWinStreakMeta'),ls:$('#allTimeLossStreak'),lsm:$('#allTimeLossStreakMeta'),bo:$('#allTimeBlowout'),bom:$('#allTimeBlowoutMeta'),cl:$('#allTimeClosest'),clm:$('#allTimeClosestMeta')};
+ const ids={best:$('#allTimeBestRecord'),bestm:$('#allTimeBestRecordMeta'),hi:$('#allTimeHighestWeek'),him:$('#allTimeHighestWeekMeta'),lo:$('#allTimeLowestWeek'),lom:$('#allTimeLowestWeekMeta'),tp:$('#allTimeTopPerformer'),tpm:$('#allTimeTopPerformerMeta'),mp:$('#allTimeMostPoints'),mpm:$('#allTimeMostPointsMeta'),ws:$('#allTimeWinStreak'),wsm:$('#allTimeWinStreakMeta'),ls:$('#allTimeLossStreak'),lsm:$('#allTimeLossStreakMeta'),bs:$('#allTimeBeltStreak'),bsm:$('#allTimeBeltStreakMeta'),bd:$('#allTimeBeltDefenses'),bdm:$('#allTimeBeltDefensesMeta'),bo:$('#allTimeBlowout'),bom:$('#allTimeBlowoutMeta'),cl:$('#allTimeClosest'),clm:$('#allTimeClosestMeta')};
  if(!ids.hi)return;
  const franchiseNames=new Set(state.teams.map(t=>t.name));
  const stats=new Map(state.teams.map(t=>[t.name,{wins:0,losses:0,ties:0,points:0,games:[]}]))
- let highest=null,top=null,biggest=null,closest=null;
+ let highest=null,lowest=null,top=null,biggest=null,closest=null;
  const leagues=[state.league,...state.history].filter(Boolean).sort((a,b)=>Number(a.season||0)-Number(b.season||0));
  for(const lg of leagues){
   try{
@@ -1146,7 +1146,7 @@ async function loadAllTimeLeagueRecords(){
      sa.games.push({season:Number(lg.season||0),week:w,result:ra});sb.games.push({season:Number(lg.season||0),week:w,result:rb});
      const margin=Math.abs(pa-pb);if(margin>0&&(!biggest||margin>biggest.margin))biggest={margin,winner:pa>pb?na:nb,loser:pa>pb?nb:na,score:pa>pb?`${pa.toFixed(2)}-${pb.toFixed(2)}`:`${pb.toFixed(2)}-${pa.toFixed(2)}`,season:String(lg.season||''),week:w};if(margin>0&&(!closest||margin<closest.margin))closest={margin,winner:pa>pb?na:nb,loser:pa>pb?nb:na,score:pa>pb?`${pa.toFixed(2)}-${pb.toFixed(2)}`:`${pb.toFixed(2)}-${pa.toFixed(2)}`,season:String(lg.season||''),week:w};
     }
-    for(const m of ms){const pts=Number(m.points),r=rosters.find(x=>Number(x.roster_id)===Number(m.roster_id)),u=users.find(x=>String(x.user_id)===String(r?.owner_id)),team=currentFranchiseNameForHistorical(lg,r,u);if(Number.isFinite(pts)&&pts>0&&franchiseNames.has(team)&&(!highest||pts>highest.points))highest={points:pts,team,season:String(lg.season||''),week:w};const pp=m.players_points||{},eligible=Array.isArray(m.starters)&&m.starters.length?m.starters:Object.keys(pp);for(const pid of eligible){const val=Number(pp?.[pid]);if(!Number.isFinite(val)||val<=0)continue;if(!top||val>top.points){const info=playerInfo(pid);top={points:val,player:info.name,position:info.position,nflTeam:info.nflTeam,team,season:String(lg.season||''),week:w}}}}
+    for(const m of ms){const pts=Number(m.points),r=rosters.find(x=>Number(x.roster_id)===Number(m.roster_id)),u=users.find(x=>String(x.user_id)===String(r?.owner_id)),team=currentFranchiseNameForHistorical(lg,r,u);if(Number.isFinite(pts)&&pts>0&&franchiseNames.has(team)){if(!highest||pts>highest.points)highest={points:pts,team,season:String(lg.season||''),week:w};if(!lowest||pts<lowest.points)lowest={points:pts,team,season:String(lg.season||''),week:w}}const pp=m.players_points||{},eligible=Array.isArray(m.starters)&&m.starters.length?m.starters:Object.keys(pp);for(const pid of eligible){const val=Number(pp?.[pid]);if(!Number.isFinite(val)||val<=0)continue;if(!top||val>top.points){const info=playerInfo(pid);top={points:val,player:info.name,position:info.position,nflTeam:info.nflTeam,team,season:String(lg.season||''),week:w}}}}
    }
   }catch(e){console.warn('all-time records',lg?.league_id,e)}
  }
@@ -1174,13 +1174,33 @@ async function loadAllTimeLeagueRecords(){
  for(const [team,st] of stats){const games=st.wins+st.losses+st.ties,pct=games?(st.wins+st.ties*.5)/games:0;if(games&&(!best||pct>best.pct||(pct===best.pct&&st.wins>best.wins)))best={team,...st,games,pct};if(!mostPts||st.points>mostPts.points)mostPts={team,...st};const ordered=[...st.games].sort((a,b)=>a.season-b.season||a.week-b.week);for(const kind of ['W','L']){let count=0,start=null,max=0,maxStart=null,maxEnd=null;for(const g of ordered){if(g.result===kind){if(count===0)start=g;count++;if(count>max){max=count;maxStart=start;maxEnd=g}}else count=0}const rec=max?{team,count:max,start:maxStart,end:maxEnd}:null;if(kind==='W'&&rec&&(!longW||rec.count>longW.count))longW=rec;if(kind==='L'&&rec&&(!longL||rec.count>longL.count))longL=rec}}
  // Official league-history correction: DYNASTYdeezzzNUTZZZ lost seven straight from 2025 Weeks 1–7.
  longL={team:'DYNASTYdeezzzNUTZZZ',count:7,start:{season:2025,week:1},end:{season:2025,week:7}};
+ let beltStreak=null,beltDefenseLeader=null;
+ try{
+  const belt=await v34BeltData(),defenses=new Map(),segments=[];
+  let current=belt.history[0]?.holder||'DakstreetBoys',start=1,count=0;
+  for(const event of belt.history.filter(x=>Number(x.week)>0)){
+   if(event.type==='transfer'){
+    if(count>0)segments.push({team:current,count,start,end:Number(event.week)-1});
+    current=event.holder;start=Number(event.week);count=1;
+   }else{
+    count++;
+    if(event.type==='defense')defenses.set(event.holder,(defenses.get(event.holder)||0)+1);
+   }
+  }
+  if(count>0)segments.push({team:current,count,start,end:Number(belt.latestEvent?.week||start)});
+  beltStreak=segments.sort((a,b)=>b.count-a.count||a.start-b.start)[0]||null;
+  beltDefenseLeader=[...defenses].map(([team,count])=>({team,count})).sort((a,b)=>b.count-a.count||a.team.localeCompare(b.team))[0]||null;
+ }catch(e){console.warn('belt records',e)}
  const set=(a,b,v,m)=>{if(a)a.textContent=v;if(b)b.textContent=m||''};
  set(ids.best,ids.bestm,best?best.team:'—',best?`${best.wins}-${best.losses}${best.ties?'-'+best.ties:''} • ${(best.pct*100).toFixed(1)}% • includes 2025 franchise carryovers`:'No completed games found.');
  set(ids.hi,ids.him,highest?`${highest.points.toFixed(2)} pts`:'—',highest?`${highest.team} • ${highest.season} Week ${highest.week}`:'No completed weekly scores found.');
+ set(ids.lo,ids.lom,lowest?`${lowest.points.toFixed(2)} pts`:'—',lowest?`${lowest.team} • ${lowest.season} Week ${lowest.week}`:'No completed weekly scores found.');
  set(ids.tp,ids.tpm,top?`${top.player} • ${top.points.toFixed(2)}`:'—',top?`${top.position} • ${top.nflTeam} • ${top.team} • ${top.season} Week ${top.week}`:'No completed player performances found.');
  set(ids.mp,ids.mpm,mostPts?mostPts.team:'—',mostPts?`${mostPts.points.toFixed(1)} total points scored`:'No completed games found.');
  set(ids.ws,ids.wsm,longW?`${longW.team} • W${longW.count}`:'—',longW?`${longW.start.season} Wk ${longW.start.week} → ${longW.end.season} Wk ${longW.end.week}`:'No win streak found.');
  set(ids.ls,ids.lsm,longL?`${longL.team} • L${longL.count}`:'—',longL?`${longL.start.season} Wk ${longL.start.week} — ${longL.end.season} Wk ${longL.end.week}`:'No losing streak found.');
+ set(ids.bs,ids.bsm,beltStreak?`${beltStreak.team} • ${beltStreak.count} wks`:'—',beltStreak?`Held continuously from Week ${beltStreak.start} through Week ${beltStreak.end}`:'No completed belt games found.');
+ set(ids.bd,ids.bdm,beltDefenseLeader?`${beltDefenseLeader.team} • ${beltDefenseLeader.count}`:'—',beltDefenseLeader?`${beltDefenseLeader.count} successful belt defense${beltDefenseLeader.count===1?'':'s'}`:'No successful belt defenses found.');
  set(ids.bo,ids.bom,biggest?`${biggest.winner} +${biggest.margin.toFixed(2)}`:'—',biggest?`${biggest.score} vs ${biggest.loser} • ${biggest.season} Week ${biggest.week}`:'No completed games found.');
  set(ids.cl,ids.clm,closest?`${closest.winner} +${closest.margin.toFixed(2)}`:'—',closest?`${closest.score} vs ${closest.loser} • ${closest.season} Week ${closest.week}`:'No completed non-tie games found.');
 }
@@ -7318,7 +7338,8 @@ try{
 let v143LiveReady=false,v143TickerSignature='',v143PendingTickerLines=null;
 function v143SetTicker(lines){
  const track=document.getElementById('v119Ticker');if(!track||!v143LiveReady)return;
- const cleanLines=[...new Set((lines||[]).filter(Boolean))].slice(0,12),signature=cleanLines.join('\n');
+ const repeatedPanelHeadline=/\b(?:closest game|biggest lead|high(?:est)? score race)\b/i;
+ const cleanLines=[...new Set((lines||[]).filter(line=>line&&!repeatedPanelHeadline.test(line)))].slice(0,12),signature=cleanLines.join('\n');
  if(!document.getElementById('homePage')?.classList.contains('active')){v143PendingTickerLines=cleanLines;return;}
  if(!cleanLines.length||signature===v143TickerSignature)return;
  v143PendingTickerLines=null;v143TickerSignature=signature;
@@ -7384,8 +7405,9 @@ function v119Gameday(){
  if(belt)belt.textContent='Loading the current belt holder…';v150RefreshBeltPresentation(games);
  // Upset watch: a team that entered the week as the Sleeper projection underdog is leading live.
  played.forEach(g=>{if(!Number.isFinite(g.pa)||!Number.isFinite(g.pb)||g.pa===g.pb||g.sa===g.sb)return;const under=g.pa<g.pb?g.a:g.b,underScore=g.pa<g.pb?g.sa:g.sb,favScore=g.pa<g.pb?g.sb:g.sa,fav=g.pa<g.pb?g.b:g.a;if(underScore>favScore)lines.push(`⚡ UPSET WATCH: ${under.name} leads projected favorite ${fav.name} by ${(underScore-favScore).toFixed(1)}`)});
- // Live weekly high/low score races.
- if(played.length){const teams=played.flatMap(g=>[{t:g.a,s:g.sa},{t:g.b,s:g.sb}]).sort((x,y)=>y.s-x.s),hi=teams[0],lo=teams[teams.length-1];if(hi&&hi.s>0)lines.push(`👑 HIGH SCORE RACE: ${hi.t.name} leads the league with ${hi.s.toFixed(1)}`);if(lo&&lo.s>0)lines.push(`🪦 LOW SCORE DANGER: ${lo.t.name} sits at ${lo.s.toFixed(1)}`)}
+ // The live score panels already show the closest game, biggest lead and
+ // top-three score race. Keep the ticker for supporting league headlines.
+ if(played.length){const teams=played.flatMap(g=>[{t:g.a,s:g.sa},{t:g.b,s:g.sb}]).sort((x,y)=>y.s-x.s),lo=teams[teams.length-1];if(lo&&lo.s>0)lines.push(`🪦 LOW SCORE DANGER: ${lo.t.name} sits at ${lo.s.toFixed(1)}`)}
  // Top individual starter performance from Sleeper's live players_points feed.
  let top=null;for(const g of played)for(const [m,t] of [[g.ma,g.a],[g.mb,g.b]]){const pp=m.players_points||m.playersPoints||{};for(const id of (m.starters||[])){const pts=Number(pp?.[id]);if(!Number.isFinite(pts)||pts<=0)continue;if(!top||pts>top.pts){const inf=playerInfoV18(id);top={name:inf.name,pts,team:t.name}}}}if(top)lines.push(`🏅 TOP PERFORMER: ${top.name} • ${top.pts.toFixed(1)} for ${top.team}`);
  // Detect lead changes/comebacks between live refreshes on this device.
@@ -7850,7 +7872,7 @@ bootstrap();
 <script>
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
-    navigator.serviceWorker.register('./service-worker.js?v=165', {updateViaCache:'none'}).then(reg => reg.update()).catch(() => {});
+    navigator.serviceWorker.register('./service-worker.js?v=166', {updateViaCache:'none'}).then(reg => reg.update()).catch(() => {});
   });
 }
 </script>
