@@ -1,4 +1,4 @@
-const CACHE_NAME = 'lone-star-dynasty-v168-compact-live-scores';
+const CACHE_NAME = 'lone-star-dynasty-v169-matchup-priority';
 const APP_SHELL = [
   './',
   './index.html',
