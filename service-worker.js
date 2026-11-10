@@ -1,4 +1,4 @@
-const CACHE_NAME = 'lone-star-dynasty-v166-records-ticker';
+const CACHE_NAME = 'lone-star-dynasty-v167-live-game-center';
 const APP_SHELL = [
   './',
   './index.html',
