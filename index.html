@@ -13,7 +13,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
 <meta name="mobile-web-app-capable" content="yes" />
 <meta name="application-name" content="Lone Star Dynasty" />
-<meta name="lsd-build" content="v170" />
+<meta name="lsd-build" content="v172" />
 <title>Lone Star Dynasty</title>
 <style>
 :root{--ink:#07101a;--ink2:#0d1824;--panel:rgba(10,18,28,.91);--paper:#efe4cc;--muted:#aeb7c2;--red:#c83632;--red2:#8d201f;--line:rgba(239,228,204,.18);--gold:#c49a47;--green:#64b76d;--shadow:0 18px 50px rgba(0,0,0,.34)}
@@ -7932,7 +7932,7 @@ bootstrap();
 <script>
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
-    navigator.serviceWorker.register('./service-worker.js?v=170', {updateViaCache:'none'}).then(reg => reg.update()).catch(() => {});
+    navigator.serviceWorker.register('./service-worker.js?v=172', {updateViaCache:'none'}).then(reg => reg.update()).catch(() => {});
   });
 }
 </script>
@@ -9059,6 +9059,7 @@ body.theme-christmas-v161 .topbar{border-bottom-color:#2f9a60}
 .live-match-card-v167.belt{border-top-color:#e04444;box-shadow:inset 0 3px #e04444,0 14px 34px rgba(0,0,0,.25)}
 .live-match-card-v167.motw.belt{border-top-color:rgba(240,189,85,.9);box-shadow:inset 0 3px #f0bd55,inset 0 6px #e04444,0 14px 34px rgba(0,0,0,.25)}
 .live-badge-v167.motw{border-color:rgba(240,189,85,.72);color:#f0bd55}.live-badge-v167.belt{border-color:rgba(200,54,50,.72);color:#ef817b}
+.live-compact-team-v168.score-leader>b{color:#8fe3aa}.live-result-v171{color:#8fe3aa;font-style:normal;font-weight:900;text-transform:uppercase;letter-spacing:.05em}.live-defender-v172{display:block;margin-top:3px;color:#ef817b;font-size:8px;line-height:1.15;font-weight:900;font-style:normal;text-transform:uppercase}.live-count-v167.bye{color:#c6b8e5;border-color:rgba(198,184,229,.35)}.live-compare-player-v168.bye .live-player-dot-v167{background:#b6a5d5}.live-performer-v171{display:block;line-height:1.35}.live-performer-v171 em{display:block;padding-inline-start:1.3em;color:var(--muted);font-size:.85em;font-style:normal;overflow-wrap:anywhere}
 </style>
 
 <script id="v167-live-game-center-js">
@@ -9096,11 +9097,12 @@ body.theme-christmas-v161 .topbar{border-bottom-color:#2f9a60}
  function eventIcon(type){return {big:'💥',score:'🏈',lead:'🔄',projection:'📈',belt:'🏆',final:'✅',alert:'🚨',info:'⭐'}[type]||'⭐'}
  function addPulse(type,text,detail=''){if(!text)return;const duplicate=runtime.pulse.find(x=>x.text===text&&Date.now()-x.ts<45000);if(duplicate)return;runtime.pulse.unshift({type,text,detail,ts:Date.now()});runtime.pulse=runtime.pulse.slice(0,30);try{sessionStorage.setItem(pulseStorageKey(),JSON.stringify(runtime.pulse))}catch{}}
  async function fetchNFL(){
-  const season=Number(state.nfl?.season||state.league?.season||new Date().getFullYear()),week=liveWeek(),url=`https://site.api.espn.com/apis/site/v2/sports/football/nfl/scoreboard?dates=${season}&seasontype=${seasonType()}&week=${week}`;
+  const season=Number(state.nfl?.season||state.league?.season||new Date().getFullYear()),week=liveWeek(),url=`https://site.api.espn.com/apis/site/v2/sports/football/nfl/scoreboard?dates=${season}&seasontype=${seasonType()}&week=${week}&limit=100`;
   try{
    const controller=new AbortController(),timeout=setTimeout(()=>controller.abort(),4000),response=await fetch(url,{cache:'no-store',signal:controller.signal});clearTimeout(timeout);if(!response.ok)throw new Error(String(response.status));const data=await response.json(),byTeam=new Map(),games=[];
    for(const event of data.events||[]){const comp=event.competitions?.[0]||{},status=event.status||comp.status||{},type=status.type||{},teams=(comp.competitors||[]).map(x=>code(x.team?.abbreviation)),situation=comp.situation||event.situation||{},lastPlay=situation.lastPlay||comp.lastPlay||{};const game={id:String(event.id||comp.id||teams.join('-')),teams,state:type.state||'pre',completed:!!type.completed,detail:type.shortDetail||type.detail||status.displayClock||'',period:Number(status.period||0),clock:status.displayClock||'',date:event.date||comp.date||'',lastPlay:String(lastPlay.text||''),lastPlayId:String(lastPlay.id||lastPlay.text||'')};games.push(game);teams.forEach(t=>byTeam.set(t,game))}
-   return {ok:true,byTeam,games};
+   const weekOK=data.week?.number==null||Number(data.week.number)===week;
+   return weekOK&&byTeam.size>0?{ok:true,byTeam,games}:emptyNFL();
   }catch{return {ok:false,byTeam:new Map(),games:[]}}
  }
  async function refreshProjections(){const week=liveWeek();if(runtime.projectionWeek===week&&Date.now()-runtime.projectionAt<300000)return;runtime.projectionAt=Date.now();runtime.projectionWeek=week;const season=String(state.league?.season||state.nfl?.season||new Date().getFullYear()),positions=['QB','RB','WR','TE','K','DEF'];try{const batches=await Promise.all(positions.map(pos=>getJSON(`https://api.sleeper.app/projections/nfl/${season}/${week}?season_type=regular&position[]=${pos}`).catch(()=>[]))),map=new Map();batches.flat().forEach(row=>{const id=String(row?.player_id??row?.player?.player_id??'');if(id)map.set(id,row)});if(liveWeek()===week)runtime.projections=map}catch{}}
@@ -9135,19 +9137,47 @@ body.theme-christmas-v161 .topbar{border-bottom-color:#2f9a60}
   runtime.beltRequest={week,promise};return promise;
  }
  function playerStatus(id,points,nfl){
-  if(liveWeek()<leagueWeek())return {kind:'finished',label:'Final',game:null};
-  const raw=playerRaw(id),injury=String(raw.injury_status||raw.status||'').toUpperCase(),team=code(raw.team||playerInfoV18(id).nflTeam),isOut=/\b(?:OUT|IR|PUP|SUSPENDED|INACTIVE|NFI)\b/.test(injury);
-  if(isOut)return {kind:'out',label:injury||'OUT',game:null};
-  const game=nfl.byTeam.get(team);if(game){if(game.completed||game.state==='post')return {kind:'finished',label:'Final',game};if(game.state==='in')return {kind:'live',label:game.detail||'Live',game};return {kind:'remaining',label:game.detail||formatKickoff(game.date),game}}
-  if(nfl.ok)return {kind:'finished',label:team&&team!=='FA'?'Bye / No Game':'Inactive',game:null};
-  return Number(points)>0?{kind:'live',label:'Scoring',game:null}:{kind:'remaining',label:'Still to play',game:null};
+  const past=liveWeek()<leagueWeek(),raw=playerRaw(id),team=code(raw.team||playerInfoV18(id).nflTeam);
+  const game=nfl.byTeam.get(team),hasPoints=Number(points)!==0,knownTeam=/^[A-Z]{2,3}$/.test(team)&&team!=='FA';
+  if(!id||id==='0')return {kind:'empty',label:'Empty slot',game:null};
+  if(!hasPoints&&nfl.ok&&knownTeam&&!game)return {kind:'bye',label:'Bye',game:null};
+  if(past)return {kind:'finished',label:'Final',game:null};
+  const injury=String(raw.injury_status||raw.status||'').toUpperCase();
+  if(game?.completed||game?.state==='post')return {kind:'finished',label:'Final',game};
+  if(/\b(?:OUT|IR|PUP|SUSPENDED|INACTIVE|NFI)\b/.test(injury)&&!hasPoints)return {kind:'out',label:injury||'OUT',game};
+  if(game?.state==='in')return {kind:'live',label:game.detail||'Live',game};
+  if(game)return {kind:'remaining',label:game.detail||formatKickoff(game.date),game};
+  if(nfl.ok&&team==='FA'&&raw.player_id)return {kind:'out',label:'Inactive',game:null};
+  return {kind:'remaining',label:hasPoints?'Scored • game status pending':'Game status pending',game:null};
  }
  function formatKickoff(date){if(!date)return'Scheduled';const d=new Date(date);return Number.isNaN(d.getTime())?'Scheduled':d.toLocaleString([],{weekday:'short',hour:'numeric',minute:'2-digit'})}
  function lineupSlots(){return (state.league?.roster_positions||[]).filter(x=>!['BN','IR','TAXI'].includes(String(x).toUpperCase()))}
  function teamModel(team,matchup,nfl){
-  const points=matchup?.players_points||matchup?.playersPoints||{},slots=lineupSlots(),starters=(matchup?.starters||team?.roster?.starters||[]).map(String),rows=starters.map((id,index)=>{const info=playerInfoV18(id),current=Number(points?.[id]||0),projection=Math.max(0,projectionValue(id)),status=playerStatus(id,current,nfl);let remaining=0;if(status.kind==='remaining')remaining=projection;else if(status.kind==='live')remaining=Math.max(0,projection-current);return {id,slot:slots[index]||info.position||'FLEX',info,current,projection,projectedFinal:current+remaining,status}}),score=Number(matchup?.points||0),remaining=rows.reduce((sum,row)=>sum+Math.max(0,row.projectedFinal-row.current),0),counts={live:0,remaining:0,finished:0,out:0};rows.forEach(row=>counts[row.status.kind]=(counts[row.status.kind]||0)+1);return {team,matchup,rows,score,projected:score+remaining,counts}}
+  const points=matchup?.players_points||matchup?.playersPoints||{},slots=lineupSlots(),starters=(matchup?.starters||team?.roster?.starters||[]).map(String),rows=starters.map((id,index)=>{const info=playerInfoV18(id);info.name=info.name||playerRaw(id).full_name||`Player ${id}`;const current=Number(points?.[id]??matchup?.starters_points?.[index])||0,projection=Math.max(0,projectionValue(id)),status=playerStatus(id,current,nfl);let remaining=0;if(status.kind==='remaining')remaining=projection;else if(status.kind==='live')remaining=Math.max(0,projection-current);return {id,slot:slots[index]||info.position||'FLEX',info,current,projection,projectedFinal:current+remaining,status}}),score=Number(matchup?.points||0),remaining=rows.reduce((sum,row)=>sum+Math.max(0,row.projectedFinal-row.current),0),counts={live:0,remaining:0,finished:0,bye:0,out:0,empty:0};rows.forEach(row=>counts[row.status.kind]=(counts[row.status.kind]||0)+1);return {team,matchup,rows,score,projected:score+remaining,counts}}
  function matchupSource(){const week=liveWeek();return runtime.weeks.get(week)?.rows||(state.league&&week===leagueWeek()&&week===Number(state.displayWeek)?state.matchups:[])||[]}
- function buildGames(nfl){const grouped=new Map();for(const m of matchupSource()){if(m.matchup_id==null)continue;const k=String(m.matchup_id);if(!grouped.has(k))grouped.set(k,[]);grouped.get(k).push(m)}return [...grouped].filter(([,g])=>g.length===2).map(([id,g])=>{const a=teamModel(teamByRoster(g[0].roster_id),g[0],nfl),b=teamModel(teamByRoster(g[1].roster_id),g[1],nfl);if(!a.team||!b.team)return null;const active=a.counts.live+b.counts.live,pending=a.counts.remaining+b.counts.remaining,finished=!active&&!pending,projectedWinner=Math.abs(a.projected-b.projected)<.01?null:(a.projected>b.projected?a:b),spread=Math.abs(a.projected-b.projected),prob=projectedWinner?(finished?100:Math.max(52,Math.min(95,Math.round(50+spread*2.15)))):50,status=finished?'final':active?'live':(a.score>0||b.score>0)?'open':'scheduled';return {id,a,b,active,pending,finished,projectedWinner,prob,status}}).filter(Boolean)}
+ function buildGames(nfl){
+  const grouped=new Map();
+  for(const m of matchupSource()){
+   if(m.matchup_id==null)continue;
+   const key=String(m.matchup_id);
+   if(!grouped.has(key))grouped.set(key,[]);
+   grouped.get(key).push(m);
+  }
+  return [...grouped].filter(([,g])=>g.length===2).map(([id,g])=>{
+   const a=teamModel(teamByRoster(g[0].roster_id),g[0],nfl),b=teamModel(teamByRoster(g[1].roster_id),g[1],nfl);
+   if(!a.team||!b.team)return null;
+   const active=a.counts.live+b.counts.live,pending=a.counts.remaining+b.counts.remaining;
+   const hasScoring=a.score!==0||b.score!==0||a.rows.some(r=>r.current!==0)||b.rows.some(r=>r.current!==0);
+   const finished=liveWeek()<leagueWeek()||(!active&&!pending&&(a.counts.finished+b.counts.finished>0||nfl.games.length>0&&nfl.games.every(g=>g.completed||g.state==='post')));
+   const status=finished?'final':active?'live':hasScoring?'open':'scheduled';
+   const leader=a.score===b.score?null:a.score>b.score?a:b;
+   const hasProjection=side=>side.counts.live+side.counts.remaining===0||side.rows.some(r=>r.projection>0&&(r.status.kind==='remaining'||r.status.kind==='live'));
+   const canProject=!finished&&hasProjection(a)&&hasProjection(b);
+   const margin=Math.abs(a.projected-b.projected);
+   const projectedWinner=canProject&&margin>=.01?(a.projected>b.projected?a:b):null;
+   return {id,a,b,status,leader,canProject,projectedWinner,margin};
+  }).filter(Boolean);
+ }
  function snapshot(games){const out={savedAt:Date.now(),games:{},players:{}};for(const g of games){out.games[g.id]={a:g.a.score,b:g.b.score,leader:g.a.score===g.b.score?'tie':g.a.score>g.b.score?'a':'b',projected:g.projectedWinner===g.a?'a':g.projectedWinner===g.b?'b':'tie',status:g.status};for(const side of [g.a,g.b])for(const row of side.rows)out.players[`${side.team.roster.roster_id}:${row.id}`]={points:row.current,name:row.info.name,team:side.team.name}}return out}
  function detectNFLPlays(nfl){for(const game of nfl.games){const text=game.lastPlay.trim();if(!text||!game.lastPlayId)continue;const yards=Number(text.match(/(\d+)\s*yard/i)?.[1]||0),big=/touchdown|intercepted|fumble|blocked|safety/i.test(text)||yards>=20;if(!big)continue;const key=`play:${game.id}:${game.lastPlayId}`;if(runtime.pulse.some(x=>x.key===key))continue;const row={type:'big',text:`NFL BIG PLAY: ${text}`,detail:game.detail||'Live NFL action',ts:Date.now(),key};runtime.pulse.unshift(row);runtime.pulse=runtime.pulse.slice(0,30)}}
  function detectChanges(games,nfl){
@@ -9158,20 +9188,31 @@ body.theme-christmas-v161 .topbar{border-bottom-color:#2f9a60}
   }
   runtime.previous=next;try{sessionStorage.setItem(snapshotStorageKey(),JSON.stringify(next));sessionStorage.setItem(pulseStorageKey(),JSON.stringify(runtime.pulse))}catch{}
  }
- function comparePlayerHTML(row,right=false){if(!row)return '<div class="live-compare-empty-v168">—</div>';const meta=`${row.info.position||row.slot||'—'} • ${row.info.nflTeam||'FA'} • ${row.status.label}`;return `<div class="live-compare-player-v168 ${right?'right':''} ${esc(row.status.kind)}"><i class="live-player-dot-v167"></i><div class="live-player-copy-v167"><strong data-player-profile-id="${esc(row.id)}">${esc(row.info.name)}</strong><small>${esc(meta)}</small></div><div class="live-player-points-v167"><b>${row.current.toFixed(2)}</b><span>Proj ${row.projectedFinal.toFixed(1)}</span></div></div>`}
- function comparisonHTML(g){const slots=lineupSlots(),size=Math.max(g.a.rows.length,g.b.rows.length,slots.length);if(!size)return '<div class="live-event-empty-v167">Starter data unavailable.</div>';let rows='';for(let i=0;i<size;i++){const left=g.a.rows[i],right=g.b.rows[i],slot=slots[i]||left?.slot||right?.slot||'FLEX';rows+=`<div class="live-compare-row-v168">${comparePlayerHTML(left)}<div class="live-slot-v168">${esc(slot)}</div>${comparePlayerHTML(right,true)}</div>`}return `<div class="live-compare-head-v168"><strong>${esc(g.a.team.name)}</strong><span>POSITION</span><strong>${esc(g.b.team.name)}</strong></div><div class="live-compare-grid-v168">${rows}</div>`}
- function countHTML(side){return `<span class="live-count-v167 live">${side.counts.live} live</span><span class="live-count-v167">${side.counts.remaining} left</span><span class="live-count-v167">${side.counts.finished} final</span>${side.counts.out?`<span class="live-count-v167">${side.counts.out} out</span>`:''}`}
+ function comparePlayerHTML(row,right=false){if(!row||row.id==='0')return '<div class="live-compare-empty-v168">Empty slot</div>';const meta=`${row.info.position||row.slot||'—'} • ${row.info.nflTeam||'FA'} • ${row.status.label}`;return `<div class="live-compare-player-v168 ${right?'right':''} ${esc(row.status.kind)}"><i class="live-player-dot-v167"></i><div class="live-player-copy-v167"><strong data-player-profile-id="${esc(row.id)}">${esc(row.info.name)}</strong><small>${esc(meta)}</small></div><div class="live-player-points-v167"><b>${row.current.toFixed(2)}</b><span>Proj ${row.projectedFinal.toFixed(1)}</span></div></div>`}
+ function comparisonHTML(g){const slots=lineupSlots(),size=Math.max(g.a.rows.length,g.b.rows.length,slots.length);if(!size)return '<div class="live-event-empty-v167">Starter data unavailable.</div>';let rows='';for(let i=0;i<size;i++){const left=g.a.rows[i],right=g.b.rows[i],slot=slots[i]||left?.slot||right?.slot||'FLEX';rows+=`<div class="live-compare-row-v168">${comparePlayerHTML(left)}<div class="live-slot-v168">${esc(slot==='SUPER_FLEX'?'SFLEX':slot)}</div>${comparePlayerHTML(right,true)}</div>`}return `<div class="live-compare-head-v168"><strong>${esc(g.a.team.name)}</strong><span aria-hidden="true"></span><strong>${esc(g.b.team.name)}</strong></div><div class="live-compare-grid-v168">${rows}</div>`}
+ function countHTML(side){return `<span class="live-count-v167 live">${side.counts.live} live</span><span class="live-count-v167">${side.counts.remaining} left</span><span class="live-count-v167">${side.counts.finished} final</span>${side.counts.bye?`<span class="live-count-v167 bye">${side.counts.bye} bye</span>`:''}${side.counts.out?`<span class="live-count-v167">${side.counts.out} out</span>`:''}`}
  function matchHTML(g,index,belt){
-  const context=gameContext(g,belt),motw=context.motw,beltGame=context.beltGame,winner=g.projectedWinner,probA=winner===g.a?g.prob:winner===g.b?100-g.prob:50,statusText=g.status==='live'?'LIVE':g.status==='final'?'FINAL':g.status==='open'?'IN PROGRESS':'UPCOMING';
-  const side=team=>`<div class="live-compact-team-v168 ${winner===team?'winner':''}"><img src="${esc(team.team.avatar)}" onerror="this.src='lone-star-logo.jpg'" alt=""><span><strong>${esc(team.team.name)}</strong><small>Proj ${team.projected.toFixed(1)}</small></span><b>${team.score.toFixed(2)}</b></div>`;
-  return `<details class="live-match-card-v167 ${g.status} ${motw?'motw':''} ${beltGame?'belt':''}" data-game-id="${esc(g.id)}"><summary class="live-match-summary-v168"><div class="live-badges-v167"><span class="live-badge-v167 ${g.status==='live'?'live':''}">${statusText}</span>${motw?'<span class="live-badge-v167 motw">MOTW</span>':''}${beltGame?'<span class="live-badge-v167 belt">🏆 BELT</span>':''}</div><div class="live-compact-versus-v168">${side(g.a)}<span class="live-vs-v168">VS</span>${side(g.b)}</div><span class="live-expand-v168">VIEW LINEUPS</span></summary><div class="live-expanded-v168"><div class="live-projection-v167"><strong>${winner?`${esc(winner.team.name)} projected to win • ${g.prob}%`:'Projected dead heat'}</strong><span>Projected final ${g.a.projected.toFixed(2)}–${g.b.projected.toFixed(2)}</span><div class="live-projection-bar-v167"><i style="width:${probA}%"></i></div></div><div class="live-counts-v167"><div class="live-count-side-v167">${countHTML(g.a)}</div><div class="live-count-side-v167">${countHTML(g.b)}</div></div>${comparisonHTML(g)}</div></details>`
+  const context=gameContext(g,belt),motw=context.motw,beltGame=context.beltGame,winner=g.projectedWinner,statusText=g.status==='live'?(g.leader?'LIVE':'LIVE • TIED'):g.status==='final'?(g.leader?'FINAL':'FINAL • TIE'):g.status==='open'?(g.leader?'IN PROGRESS':'IN PROGRESS • TIED'):'UPCOMING';
+  const deciding=g.leader&&g.status!=='scheduled',result=g.status==='final'?'Won':'Leading';
+  const projectionTitle=g.status==='final'?(g.leader?esc(g.leader.team.name)+' wins':'Final • Tie'):!g.canProject?'Projection unavailable':winner?esc(winner.team.name)+' projected by '+fmt(g.margin):'Projected tie';
+  const projectionScore=g.status==='final'?'Final '+fmt(g.a.score)+'–'+fmt(g.b.score):g.canProject?'Projected final '+fmt(g.a.projected)+'–'+fmt(g.b.projected):'Waiting for lineup projections';
+  const side=team=>`<div class="live-compact-team-v168 ${deciding&&g.leader===team?'score-leader':''}"><img src="${esc(team.team.avatar)}" onerror="this.src='lone-star-logo.jpg'" alt=""><span><strong>${esc(team.team.name)}</strong>${context.holderName&&norm(context.holderName)===norm(team.team.name)?'<em class="live-defender-v172">Defending Belt</em>':''}<small>${deciding&&g.leader===team?`<em class="live-result-v171">${result}</em>`:''}${g.canProject?`${deciding&&g.leader===team?' • ':''}Proj ${team.projected.toFixed(1)}`:''}</small></span><b>${team.score.toFixed(2)}</b></div>`;
+  return `<details class="live-match-card-v167 ${g.status} ${motw?'motw':''} ${beltGame?'belt':''}" data-game-id="${esc(g.id)}"><summary class="live-match-summary-v168"><div class="live-badges-v167"><span class="live-badge-v167 ${g.status==='live'?'live':''}">${statusText}</span>${motw?'<span class="live-badge-v167 motw">MOTW</span>':''}${beltGame?'<span class="live-badge-v167 belt">BELT MATCH</span>':''}</div><div class="live-compact-versus-v168">${side(g.a)}<span class="live-vs-v168">VS</span>${side(g.b)}</div><span class="live-expand-v168">VIEW LINEUPS</span></summary><div class="live-expanded-v168"><div class="live-projection-v167"><strong>${projectionTitle}</strong><span>${projectionScore}</span></div><div class="live-counts-v167"><div class="live-count-side-v167">${countHTML(g.a)}</div><div class="live-count-side-v167">${countHTML(g.b)}</div></div>${comparisonHTML(g)}</div></details>`
  }
  function feedHTML(){if(!runtime.pulse.length)return '<div class="live-event-empty-v167">Big plays, scoring swings and lead changes will appear here as the games unfold.</div>';return runtime.pulse.map(e=>`<div class="live-event-v167 ${esc(e.type)}"><time>${new Date(e.ts).toLocaleTimeString([],{hour:'numeric',minute:'2-digit'})}</time><span class="live-event-icon-v167">${eventIcon(e.type)}</span><div><strong>${esc(e.text)}</strong>${e.detail?`<small>${esc(e.detail)}</small>`:''}</div></div>`).join('')}
- function overviewHTML(games,belt){const teams=games.flatMap(g=>[g.a,g.b]).sort((a,b)=>b.score-a.score),closest=[...games].sort((a,b)=>Math.abs(a.a.score-a.b.score)-Math.abs(b.a.score-b.b.score))[0],leaders=teams.slice(0,3),holder=beltHolderForWeek(belt,liveWeek()),current=liveWeek()===leagueWeek();return `<div class="live-overview-card-v167"><small>Highest Score Race</small><strong>${leaders.map((x,i)=>`<b>#${i+1}</b> ${esc(x.team.name)} ${x.score.toFixed(1)}`).join('<br>')||'Waiting for scoring'}</strong></div><div class="live-overview-card-v167"><small>Closest Matchup</small><strong>${closest?`${esc(closest.a.team.name)} ${closest.a.score.toFixed(1)} – ${esc(closest.b.team.name)} ${closest.b.score.toFixed(1)}`:'Waiting for matchups'}</strong></div><div class="live-overview-card-v167"><small>Belt Watch</small><strong>${holder?`${esc(holder)} ${current?'holds the belt':'entered the week with the belt'}${current&&belt.latestEvent?.week?` • ${esc(belt.latestEvent.detail)}`:''}`:'Loading belt history…'}</strong></div>`}
+ function overviewHTML(games){
+  const teams=games.flatMap(g=>[g.a,g.b]);
+  const scoredGames=games.filter(g=>g.status!=='scheduled');
+  const closest=[...scoredGames].sort((a,b)=>Math.abs(a.a.score-a.b.score)-Math.abs(b.a.score-b.b.score))[0];
+  const leaders=closest?[...teams].sort((a,b)=>b.score-a.score||a.team.name.localeCompare(b.team.name)).slice(0,3):[];
+  const performers=teams.flatMap(side=>side.rows.filter(row=>row.id!=='0'&&row.current!==0).map(row=>({...row,team:side.team.name})))
+   .sort((a,b)=>b.current-a.current||a.info.name.localeCompare(b.info.name)||a.team.localeCompare(b.team)).slice(0,3);
+  return `<div class="live-overview-card-v167"><small>Highest Score Race</small><strong>${leaders.map((x,i)=>`<b>#${i+1}</b> ${esc(x.team.name)} ${x.score.toFixed(1)}`).join('<br>')||'Waiting for scoring'}</strong></div><div class="live-overview-card-v167"><small>Closest Matchup</small><strong>${closest?`${esc(closest.a.team.name)} ${closest.a.score.toFixed(1)} – ${esc(closest.b.team.name)} ${closest.b.score.toFixed(1)}`:'Waiting for scoring'}</strong></div><div class="live-overview-card-v167"><small>Top 3 Performers</small><strong>${performers.map((x,i)=>`<span class="live-performer-v171"><b>#${i+1}</b> ${esc(x.info.name)} · ${fmt(x.current)}<em>${esc(x.team)}</em></span>`).join('')||'Waiting for player scores'}</strong></div>`;
+ }
  function render(games,nfl,belt){
   if(!activeRoot())return;const open=new Set([...runtime.root.querySelectorAll('details[open][data-game-id]')].map(x=>x.dataset.gameId)),anyLive=nfl.games.some(g=>g.state==='in'),allFinal=games.length&&games.every(g=>g.status==='final'),stateClass=anyLive?'':allFinal?'final':'waiting',stateText=anyLive?'NFL GAMES LIVE':allFinal?'ALL MATCHUPS FINAL':games.length?'WEEK '+liveWeek()+' SCORES':runtime.request?'CONNECTING':'SCORES UNAVAILABLE';
   const week=liveWeek(),options=Array.from({length:18},(_,i)=>`<option value="${i+1}" ${i+1===week?'selected':''}>Week ${i+1}</option>`).join(''),ordered=orderGames(games,belt);
-  runtime.root.innerHTML=`<div class="live-center-v167"><section class="live-command-v167"><div><div class="live-eyebrow-v167">Lone Star Dynasty</div><h2>Live Scores</h2><p>Tap any matchup for the position-by-position lineup battle.</p></div><div class="live-week-nav-v168"><button type="button" data-week-step="-1" ${week<=1?'disabled':''} aria-label="Previous week">‹</button><select class="live-week-select-v168" aria-label="Select fantasy week">${options}</select><button type="button" data-week-step="1" ${week>=18?'disabled':''} aria-label="Next week">›</button></div><div class="live-command-side-v167"><div class="live-state-v167 ${stateClass}">${stateText}</div><button type="button" class="live-refresh-v167" ${runtime.request?'disabled':''}>${runtime.request?'Refreshing…':'Refresh'}</button><div class="live-sync-v167">${runtime.issue&&games.length?esc(runtime.issue):runtime.weeks.get(week)?.at?`Updated ${new Date(runtime.weeks.get(week).at).toLocaleTimeString([],{hour:'numeric',minute:'2-digit'})} • ${anyLive?'8-sec live':'adaptive'}`:'Waiting for Sleeper'}</div></div></section><section class="live-matchups-v167">${ordered.map((g,i)=>matchHTML(g,i,belt)).join('')||'<div class="live-loading-v167">'+esc(runtime.issue||'Loading Week '+week+' matchups…')+'</div>'}</section><section class="live-overview-v167">${overviewHTML(games,belt)}</section><section class="live-pulse-panel-v167"><div class="live-panel-head-v167"><h3>LSD Live Pulse</h3><span>Big plays • lead changes • projection flips</span></div><div class="live-feed-v167">${feedHTML()}</div></section></div>`;
+  runtime.root.innerHTML=`<div class="live-center-v167"><section class="live-command-v167"><div><div class="live-eyebrow-v167">Lone Star Dynasty</div><h2>Live Scores</h2><p>Tap any matchup for the position-by-position lineup battle.</p></div><div class="live-week-nav-v168"><button type="button" data-week-step="-1" ${week<=1?'disabled':''} aria-label="Previous week">‹</button><select class="live-week-select-v168" aria-label="Select fantasy week">${options}</select><button type="button" data-week-step="1" ${week>=18?'disabled':''} aria-label="Next week">›</button></div><div class="live-command-side-v167"><div class="live-state-v167 ${stateClass}">${stateText}</div><button type="button" class="live-refresh-v167" ${runtime.request?'disabled':''}>${runtime.request?'Refreshing…':'Refresh'}</button><div class="live-sync-v167">${runtime.issue&&games.length?esc(runtime.issue):runtime.weeks.get(week)?.at?`Updated ${new Date(runtime.weeks.get(week).at).toLocaleTimeString([],{hour:'numeric',minute:'2-digit'})} • ${anyLive?'8-sec live':'adaptive'}`:'Waiting for Sleeper'}</div></div></section><section class="live-matchups-v167">${ordered.map((g,i)=>matchHTML(g,i,belt)).join('')||'<div class="live-loading-v167">'+esc(runtime.issue||'Loading Week '+week+' matchups…')+'</div>'}</section><section class="live-overview-v167">${overviewHTML(games)}</section><section class="live-pulse-panel-v167"><div class="live-panel-head-v167"><h3>LSD Live Pulse</h3><span>Big plays • lead changes • projection flips</span></div><div class="live-feed-v167">${feedHTML()}</div></section></div>`;
   runtime.root.querySelectorAll('details[data-game-id]').forEach(d=>{if(open.has(d.dataset.gameId))d.open=true});runtime.root.querySelector('.live-refresh-v167')?.addEventListener('click',()=>refresh(true));runtime.root.querySelectorAll('[data-week-step]').forEach(btn=>btn.addEventListener('click',()=>setWeek(week+Number(btn.dataset.weekStep||0))));runtime.root.querySelector('.live-week-select-v168')?.addEventListener('change',e=>setWeek(Number(e.target.value)));
  }
  function paintLive(){
@@ -9209,7 +9250,7 @@ body.theme-christmas-v161 .topbar{border-bottom-color:#2f9a60}
     runtime.projectionWeek=0;runtime.projectionAt=0;loadSession();paintLive();
    }
    // NFL status, projections, and history can finish later; none blocks scores.
-   if(week>=leagueWeek())fetchNFL().then(nfl=>{
+   if(week<=leagueWeek())fetchNFL().then(nfl=>{
     if(!sameWeek(week))return;
     if(nfl.ok||!runtime.nfl?.ok)runtime.nfl=nfl;
     if(week===leagueWeek())detectNFLPlays(runtime.nfl);

@@ -1,4 +1,4 @@
-const CACHE_NAME = 'lone-star-dynasty-v170-scoreboard-recovery';
+const CACHE_NAME = 'lone-star-dynasty-v172-belt-defender-label';
 const APP_SHELL = [
   './',
   './index.html',
