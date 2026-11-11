@@ -13,7 +13,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
 <meta name="mobile-web-app-capable" content="yes" />
 <meta name="application-name" content="Lone Star Dynasty" />
-<meta name="lsd-build" content="v169" />
+<meta name="lsd-build" content="v170" />
 <title>Lone Star Dynasty</title>
 <style>
 :root{--ink:#07101a;--ink2:#0d1824;--panel:rgba(10,18,28,.91);--paper:#efe4cc;--muted:#aeb7c2;--red:#c83632;--red2:#8d201f;--line:rgba(239,228,204,.18);--gold:#c49a47;--green:#64b76d;--shadow:0 18px 50px rgba(0,0,0,.34)}
@@ -880,22 +880,61 @@ function showPage(id){document.querySelectorAll('.page').forEach(p=>p.classList.
 function closeMenus(){['#teamsMenu','#toolsMenu'].forEach(s=>$(s).classList.remove('open'));$('#teamsBtn').setAttribute('aria-expanded','false');$('#toolsBtn').setAttribute('aria-expanded','false')}
 function freshApiUrl(url){if(!String(url).includes('api.sleeper.app'))return url;const sep=String(url).includes('?')?'&':'?';return `${url}${sep}_lsd_sync=${Date.now()}_${Math.random().toString(36).slice(2,8)}`}
 async function getJSON(url){const requestUrl=freshApiUrl(url);const r=await fetch(requestUrl,{cache:'no-store'});if(!r.ok)throw new Error(`${r.status} ${url}`);return r.json()}
+async function v170SleeperJSON(url,validate){
+ let error;
+ for(const requestUrl of [url,freshApiUrl(url)]){
+  const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),6000);
+  try{
+   const response=await fetch(requestUrl,{cache:'no-store',signal:controller.signal});
+   if(!response.ok)throw new Error(`Sleeper HTTP ${response.status}`);
+   const data=await response.json();
+   if(!validate(data))throw new Error('Sleeper returned incomplete data');
+   return data;
+  }catch(e){error=e}finally{clearTimeout(timer)}
+ }
+ throw error;
+}
+let v170LeagueRequest=null;
+function v170LoadLeague(){
+ if(state.league&&state.users.length&&state.rosters.length)return Promise.resolve();
+ if(v170LeagueRequest)return v170LeagueRequest;
+ const base=`https://api.sleeper.app/v1/league/${LEAGUE_ID}`,list=value=>Array.isArray(value)&&value.length>0;
+ v170LeagueRequest=Promise.all([v170SleeperJSON(base,x=>String(x?.league_id)===LEAGUE_ID),v170SleeperJSON(base+'/users',list),v170SleeperJSON(base+'/rosters',list),v170SleeperJSON('https://api.sleeper.app/v1/state/nfl',x=>Number(x?.week)>0).catch(()=>null)])
+  .then(([league,users,rosters,nfl])=>{
+   state.league=league;state.users=users;state.rosters=rosters;state.nfl=nfl;
+   state.week=Number(nfl?.week||league.settings?.leg||1);state.displayWeek=state.week;
+   mapTeams();renderMenus();renderStandings();
+  }).finally(()=>{v170LeagueRequest=null});
+ return v170LeagueRequest;
+}
+const v170MatchupRequests=new Map();
+function v170WeekMatchups(leagueId,week){
+ const key=`${leagueId}:${week}`;
+ if(v170MatchupRequests.has(key))return v170MatchupRequests.get(key);
+ const url=`https://api.sleeper.app/v1/league/${leagueId}/matchups/${week}`;
+ const request=v170SleeperJSON(url,rows=>Array.isArray(rows)&&rows.every(row=>row&&row.roster_id!=null)).finally(()=>v170MatchupRequests.delete(key));
+ v170MatchupRequests.set(key,request);
+ return request;
+}
+function v170PublishCurrentMatchups(week,rows){
+ if(week!==state.week||!rows.some(row=>row.matchup_id!=null))return;
+ state.displayWeek=week;state.matchups=rows;v143LiveReady=true;markSleeperSynced();
+}
 function markSleeperSynced(){const el=$('#syncStatus');if(!el)return;const now=new Date();el.textContent=`Last synced from Sleeper: ${now.toLocaleTimeString([], {hour:'numeric',minute:'2-digit',second:'2-digit'})}`;el.title=now.toString()}
 async function getFCalc(isDynasty){const url=`https://api.fantasycalc.com/values/current?isDynasty=${isDynasty}&numQbs=1&numTeams=10&ppr=1`;return getJSON(url)}
 function clearStaleSleeperSnapshots(){try{for(let i=localStorage.length-1;i>=0;i--){const k=localStorage.key(i)||"";if(/^lsd-(?:roster|sleeper|league-cache|team-cache)/i.test(k))localStorage.removeItem(k)}}catch{}}
 async function bootstrap(){clearStaleSleeperSnapshots();renderFallback();try{
  const base=`https://api.sleeper.app/v1/league/${LEAGUE_ID}`;
- const [league,users,rosters,nfl,tradedPicks]=await Promise.all([getJSON(base),getJSON(base+'/users'),getJSON(base+'/rosters'),getJSON('https://api.sleeper.app/v1/state/nfl'),getJSON(base+'/traded_picks').catch(()=>[])]);
- state.league=league;state.users=users;state.rosters=rosters;state.nfl=nfl;state.tradedPicks=tradedPicks||[];state.week=Number(nfl?.week||league?.settings?.leg||1)||1;state.displayWeek=state.week;
- mapTeams();renderMenus();renderStandings();
- const [matchups,tx,fcD,fcR,projections]=await Promise.allSettled([getJSON(base+`/matchups/${state.displayWeek}`),getRecentTransactions(base,state.week),getFCalc(true),getFCalc(false),getSleeperWeeklyProjections(state.displayWeek)]);
- if(matchups.status==='fulfilled'){state.matchups=matchups.value;v143LiveReady=true;}
+ await v170LoadLeague();
+ const week=state.week;
+ const [matchups,tx,fcD,fcR,projections,tradedPicks]=await Promise.allSettled([v170WeekMatchups(LEAGUE_ID,week).then(rows=>{v170PublishCurrentMatchups(week,rows);return rows}),getRecentTransactions(base,week),getFCalc(true),getFCalc(false),getSleeperWeeklyProjections(week),getJSON(base+'/traded_picks')]);
+ if(tradedPicks.status==='fulfilled')state.tradedPicks=tradedPicks.value||[];
  if(tx.status==='fulfilled')state.transactions=tx.value;
  if(fcD.status==='fulfilled')state.fcDynasty=fcD.value;
  if(fcR.status==='fulfilled')state.fcRedraft=fcR.value;
  if(projections.status==='fulfilled')state.projections=projectionMap(projections.value);
  state.fcBySleeper=new Map(state.fcDynasty.map(v=>[String(v.player?.sleeperId),v]));
- renderAll();$('#liveDot').classList.add('live');$('#liveText').textContent=`Live • Sleeper Week ${state.week}`;markSleeperSynced();
+ renderAll();if(matchups.status==='fulfilled'&&matchups.value.length){$('#liveDot').classList.add('live');$('#liveText').textContent=`Live • Sleeper Week ${state.week}`;}
  loadPlayersLazy();loadHistoryLazy();loadSeasonPerformance();
  }catch(e){console.error(e);$('#liveDot').classList.add('bad');$('#liveText').textContent='Live fetch blocked here • site will reconnect when hosted';const sync=$('#syncStatus');if(sync)sync.textContent='Sleeper sync failed • refresh to retry';renderAll()}}
 async function getRecentTransactions(base,week){const maxRound=17;const jobs=[];for(let w=1;w<=maxRound;w++)jobs.push(getJSON(base+`/transactions/${w}`).catch(()=>[]));const batches=await Promise.all(jobs);const seen=new Set(),out=[];for(const a of batches.flat()){const id=String(a.transaction_id||`${a.created||0}-${a.type||''}`);if(seen.has(id))continue;seen.add(id);out.push(a)}return out.sort((a,b)=>(b.created||0)-(a.created||0))}
@@ -1065,7 +1104,14 @@ function renderTrades(){
 function renderVotes(){let polls=[];try{polls=JSON.parse(localStorage.getItem('lsd-polls')||'[]')}catch{}if(!polls.length){$('#votesFeed').innerHTML='<div class="empty">No website votes yet. Use “New Vote” to create the first one.<br><br><small>Sleeper polls are not exposed through its public API.</small></div>';return}$('#votesFeed').innerHTML=polls.map(p=>{const total=p.options.reduce((s,o)=>s+o.votes,0)||1;const leader=[...p.options].sort((a,b)=>b.votes-a.votes)[0];return `<div class="poll"><div class="poll-question">${esc(p.question)}</div>${p.options.map(o=>{const pc=Math.round(o.votes/total*100);return `<div style="font-size:11px;margin-top:8px">${esc(o.text)} — ${o.votes}</div><div class="poll-bar"><div class="poll-fill" style="width:${pc}%"></div></div>`}).join('')}<div class="poll-meta"><span>${p.closed?'FINAL':'CURRENT'}</span><span>${p.closed?`Winner: ${esc(leader.text)}`:`${total===1&&p.options.every(o=>o.votes===0)?0:total} votes`}</span></div></div>`}).join('')}
 function renderChat(){let msgs=[];try{msgs=JSON.parse(localStorage.getItem('lsd-chat')||'[]')}catch{}$('#chatLog').innerHTML=msgs.length?msgs.slice(-40).map(m=>`<div class="chat-msg"><div class="chat-avatar">${esc(m.owner.slice(0,2).toUpperCase())}</div><div class="bubble"><strong>${esc(m.owner)} • ${esc(m.team)}</strong><p>${esc(m.text)}</p></div></div>`).join(''):'<div class="empty">The website chat is ready. Messages here are stored on this device until a shared database is connected.</div>';$('#chatLog').scrollTop=$('#chatLog').scrollHeight}
 function renderAll(){renderMenus();renderStandings();renderPower();renderMOTW();renderChampionBanner();renderPulse();renderTransactions();renderTrades();renderVotes();renderChat()}
-async function loadPlayersLazy(){try{const data=await getJSON('https://api.sleeper.app/v1/players/nfl');state.players=new Map(Object.entries(data));renderTransactions();renderTrades()}catch(e){console.warn('players',e)}}
+let v170PlayersRequest=null;
+function loadPlayersLazy(){
+ if(state.players.size)return Promise.resolve();
+ if(!v170PlayersRequest)v170PlayersRequest=getJSON('https://api.sleeper.app/v1/players/nfl')
+  .then(data=>{state.players=new Map(Object.entries(data));renderTransactions();renderTrades()})
+  .catch(e=>console.warn('players',e)).finally(()=>{v170PlayersRequest=null});
+ return v170PlayersRequest;
+}
 async function loadHistoryLazy(){let league=state.league,chain=[],guard=0,seen=new Set([String(state.league?.league_id||'')]);while(league?.previous_league_id&&guard++<12){try{const id=String(league.previous_league_id);if(seen.has(id))break;league=await getJSON(`https://api.sleeper.app/v1/league/${id}`);seen.add(id);chain.push(league)}catch{break}}for(const id of KNOWN_HISTORY_IDS){if(seen.has(String(id)))continue;try{const lg=await getJSON(`https://api.sleeper.app/v1/league/${id}`);seen.add(String(id));chain.push(lg)}catch(e){console.warn('history',id,e)}}chain.sort((a,b)=>Number(b.season||0)-Number(a.season||0));state.history=chain;await loadDefendingChampion();renderChampionBanner();renderMOTW()}
 function playoffStatus(t){const total=state.teams.length,spots=Number(state.league?.settings?.playoff_teams||6)||6,regEnd=Math.max(1,Number(state.league?.settings?.playoff_week_start||15)-1),s=t.roster.settings||{},played=(s.wins||0)+(s.losses||0)+(s.ties||0),left=Math.max(0,regEnd-played),sorted=sortedStandings(),cut=sorted[Math.min(spots-1,total-1)],outside=sorted[Math.min(spots,total-1)];if(!cut)return {text:'In hunt',cls:'status-hunt'};const maxWins=(s.wins||0)+left;if(maxWins<(cut.roster.settings?.wins||0))return {text:'Eliminated',cls:'status-eliminated'};if(outside){const outsideMax=(outside.roster.settings?.wins||0)+Math.max(0,regEnd-((outside.roster.settings?.wins||0)+(outside.roster.settings?.losses||0)+(outside.roster.settings?.ties||0)));if((s.wins||0)>outsideMax)return {text:'Clinched',cls:'status-clinched'}}return {text:'In hunt',cls:'status-hunt'}}
 async function loadDefendingChampion(){const candidates=[...state.history,state.league].filter(Boolean).sort((a,b)=>Number(b.season||0)-Number(a.season||0));for(const l of candidates){try{const br=await getJSON(`https://api.sleeper.app/v1/league/${l.league_id}/winners_bracket`);const final=[...br].sort((a,b)=>(b.r||0)-(a.r||0)).find(x=>x.w);if(!final)continue;const [rs,us]=await Promise.all([getJSON(`https://api.sleeper.app/v1/league/${l.league_id}/rosters`),getJSON(`https://api.sleeper.app/v1/league/${l.league_id}/users`)]);const r=rs.find(x=>Number(x.roster_id)===Number(final.w)),u=us.find(x=>String(x.user_id)===String(r?.owner_id));if(r&&u){state.champion={season:l.season,name:teamName(u,r),avatar:teamAvatar(u),owner:ownerFor(teamName(u,r))};return}}catch{}}}
@@ -7325,7 +7371,8 @@ v99Apply=function(el){
 window.__LSD_V109={
   state,playerInfoV18,playerPosRankV18,teamByRoster,getJSON,LEAGUE_ID,
   seasonPlayerTotalsV27,seasonProjectionTotalsV28,currentProjectionV27,renderTool,renderFranchisePage,
-  showPage,norm,esc,v34BeltData
+  showPage,norm,esc,v34BeltData,v170LoadLeague,v170WeekMatchups,v170PublishCurrentMatchups,loadPlayersLazy,
+  v169HistoricalMatchups,v163SharedMOTWHistory,MOTW_COMMISSIONER_OVERRIDES
 };
 
 
@@ -7446,9 +7493,11 @@ async function v141RefreshLsdLive(){
    const week=Math.max(1,Number(freshNfl?.week||state.week||state.displayWeek||1));
    const rolled=week!==Number(state.week||1);
    if(freshNfl)state.nfl=freshNfl;
-   if(rolled){state.week=week;state.displayWeek=week;v143TickerSignature=''}
-   const fresh=await getJSON(`https://api.sleeper.app/v1/league/${LEAGUE_ID}/matchups/${week}`);
-   if(Array.isArray(fresh)){state.displayWeek=week;state.matchups=fresh;v143LiveReady=true;if(rolled)renderMOTW();v119Gameday();renderMOTWCurrentScores();markSleeperSynced();}
+   const fresh=await v170WeekMatchups(LEAGUE_ID,week);
+   if(fresh.some(row=>row.matchup_id!=null)){
+    if(rolled){state.week=week;v143TickerSignature=''}
+    v170PublishCurrentMatchups(week,fresh);if(rolled)renderMOTW();v119Gameday();renderMOTWCurrentScores();
+   }
   }catch(e){}
   finally{v141LiveRefreshPromise=null;}
  })();
@@ -7810,8 +7859,7 @@ const v169CompletedMatchups=new Map();
 function v169HistoricalMatchups(leagueId,week){
  const key=`${leagueId}:${week}`,now=Date.now(),cached=v169CompletedMatchups.get(key);
  if(cached&&now-cached.at<300000)return cached.promise;
- const url=`https://api.sleeper.app/v1/league/${leagueId}/matchups/${week}`;
- const promise=fetch(url,{cache:'no-store'}).then(r=>{if(!r.ok)throw new Error(`Sleeper ${r.status}`);return r.json()}).catch(()=>getJSON(url)).then(rows=>{if(!Array.isArray(rows)||!rows.length)throw new Error(`Week ${week} matchup history unavailable`);return rows});
+ const promise=v170WeekMatchups(leagueId,week).then(rows=>{if(!rows.length)throw new Error(`Week ${week} matchup history unavailable`);return rows});
  v169CompletedMatchups.set(key,{at:now,promise});
  promise.catch(()=>{if(v169CompletedMatchups.get(key)?.promise===promise)v169CompletedMatchups.delete(key)});
  return promise;
@@ -7884,7 +7932,7 @@ bootstrap();
 <script>
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
-    navigator.serviceWorker.register('./service-worker.js?v=169', {updateViaCache:'none'}).then(reg => reg.update()).catch(() => {});
+    navigator.serviceWorker.register('./service-worker.js?v=170', {updateViaCache:'none'}).then(reg => reg.update()).catch(() => {});
   });
 }
 </script>
@@ -9017,13 +9065,14 @@ body.theme-christmas-v161 .topbar{border-bottom-color:#2f9a60}
 (function(){
  'use strict';
  const bridge=window.__LSD_V109;if(!bridge)return;
- const {state,playerInfoV18,teamByRoster,getJSON,LEAGUE_ID,currentProjectionV27,renderFranchisePage,norm,esc,v34BeltData}=bridge;
- const runtime={root:null,timer:null,busy:false,pulse:[],previous:null,changed:new Set(),nfl:null,belt:null,beltAt:0,beltWeek:0,motwHistory:[],motwAt:0,motwKey:'',projectionAt:0,projectionWeek:0,projections:new Map(),matchups:null,week:0,weekKey:'',refreshDelay:30000};
+ const {state,playerInfoV18,teamByRoster,getJSON,LEAGUE_ID,currentProjectionV27,norm,esc,loadPlayersLazy,
+  v170LoadLeague,v170WeekMatchups,v170PublishCurrentMatchups,v169HistoricalMatchups,v163SharedMOTWHistory,MOTW_COMMISSIONER_OVERRIDES}=bridge;
+ const runtime={root:null,timer:null,request:null,pulse:[],previous:null,changed:new Set(),nfl:null,belt:null,beltAt:0,beltWeek:0,beltRequest:null,motwHistory:[],motwAt:0,motwKey:'',projectionAt:0,projectionWeek:0,projections:new Map(),weeks:new Map(),week:0,dataWeek:0,weekKey:'',issue:'',refreshDelay:30000};
  const aliases={JAC:'JAX',WSH:'WAS',LA:'LAR',OAK:'LV'};
  const code=x=>aliases[String(x||'').toUpperCase()]||String(x||'').toUpperCase();
  const fmt=n=>Number(n||0).toFixed(2);
- const nowLabel=()=>new Date().toLocaleTimeString([],{hour:'numeric',minute:'2-digit'});
- const liveWeek=()=>Number(runtime.week||state.displayWeek||state.week||1);
+ const liveWeek=()=>Number(runtime.week||state.week||1);
+ const emptyNFL=()=>({ok:false,byTeam:new Map(),games:[]});
  const leagueWeek=()=>Number(state.week||state.displayWeek||1);
  async function refreshMOTWHistory(){
   const key=`${state.league?.league_id}:${leagueWeek()}`;
@@ -9056,7 +9105,6 @@ body.theme-christmas-v161 .topbar{border-bottom-color:#2f9a60}
  }
  async function refreshProjections(){const week=liveWeek();if(runtime.projectionWeek===week&&Date.now()-runtime.projectionAt<300000)return;runtime.projectionAt=Date.now();runtime.projectionWeek=week;const season=String(state.league?.season||state.nfl?.season||new Date().getFullYear()),positions=['QB','RB','WR','TE','K','DEF'];try{const batches=await Promise.all(positions.map(pos=>getJSON(`https://api.sleeper.app/projections/nfl/${season}/${week}?season_type=regular&position[]=${pos}`).catch(()=>[]))),map=new Map();batches.flat().forEach(row=>{const id=String(row?.player_id??row?.player?.player_id??'');if(id)map.set(id,row)});if(liveWeek()===week)runtime.projections=map}catch{}}
  function projectionValue(id){const row=runtime.projections.get(String(id));if(row){const st=row.stats||row,rec=Number(state.league?.scoring_settings?.rec||0),preferred=rec>=.75?'pts_ppr':rec>=.25?'pts_half_ppr':'pts_std';for(const key of [preferred,'pts_ppr','pts_half_ppr','pts_std','pts']){const value=Number(st?.[key]);if(Number.isFinite(value))return value}}return liveWeek()===leagueWeek()?Math.max(0,Number(currentProjectionV27(id)||0)):0}
- function reconcileBelt(data){const strong=document.querySelector('.belt-copy-v33 strong'),detail=document.querySelector('.belt-copy-v33 span'),match=String(strong?.textContent||'').match(/^(.+?)\s+HOLDS THE BELT$/i),holder=match?.[1]?.trim();if(holder&&state.teams.some(t=>norm(t.name)===norm(holder)))return {...(data||{}),holder,latestEvent:data?.latestEvent?.week?data.latestEvent:{...(data?.latestEvent||{}),detail:String(detail?.textContent||'').replace(/\s*•\s*tap for history.*$/i,'')}};return data}
  async function buildBeltHistory(){
   let holder='DakstreetBoys',history=[{week:0,holder,type:'start',detail:'2025 champion enters 2026 holding the Lone Star Belt'}],latestEvent=history[0];
   const max=Math.max(0,Math.min(17,leagueWeek()-1));
@@ -9076,8 +9124,18 @@ body.theme-christmas-v161 .topbar{border-bottom-color:#2f9a60}
   }
   return{holder,history,latestEvent,knownThrough}
  }
- async function beltData(){const week=leagueWeek();if(runtime.belt&&runtime.beltWeek===week&&Date.now()-runtime.beltAt<300000)return runtime.belt;if(!state.league||!state.users?.length||!state.rosters?.length)return reconcileBelt(runtime.belt);try{runtime.belt=await buildBeltHistory();runtime.beltAt=runtime.belt.knownThrough>=week-1?Date.now():0;runtime.beltWeek=week}catch{try{runtime.belt=await v34BeltData()}catch{}}return runtime.belt||reconcileBelt(null)}
+ async function beltData(){
+  const week=leagueWeek();
+  if(runtime.belt&&runtime.beltWeek===week&&Date.now()-runtime.beltAt<300000)return runtime.belt;
+  if(runtime.beltRequest?.week===week)return runtime.beltRequest.promise;
+  const promise=buildBeltHistory().then(belt=>{
+   if(week===leagueWeek()){runtime.belt=belt;runtime.beltAt=belt.knownThrough>=week-1?Date.now():0;runtime.beltWeek=week}
+   return belt;
+  }).finally(()=>{if(runtime.beltRequest?.promise===promise)runtime.beltRequest=null});
+  runtime.beltRequest={week,promise};return promise;
+ }
  function playerStatus(id,points,nfl){
+  if(liveWeek()<leagueWeek())return {kind:'finished',label:'Final',game:null};
   const raw=playerRaw(id),injury=String(raw.injury_status||raw.status||'').toUpperCase(),team=code(raw.team||playerInfoV18(id).nflTeam),isOut=/\b(?:OUT|IR|PUP|SUSPENDED|INACTIVE|NFI)\b/.test(injury);
   if(isOut)return {kind:'out',label:injury||'OUT',game:null};
   const game=nfl.byTeam.get(team);if(game){if(game.completed||game.state==='post')return {kind:'finished',label:'Final',game};if(game.state==='in')return {kind:'live',label:game.detail||'Live',game};return {kind:'remaining',label:game.detail||formatKickoff(game.date),game}}
@@ -9088,7 +9146,7 @@ body.theme-christmas-v161 .topbar{border-bottom-color:#2f9a60}
  function lineupSlots(){return (state.league?.roster_positions||[]).filter(x=>!['BN','IR','TAXI'].includes(String(x).toUpperCase()))}
  function teamModel(team,matchup,nfl){
   const points=matchup?.players_points||matchup?.playersPoints||{},slots=lineupSlots(),starters=(matchup?.starters||team?.roster?.starters||[]).map(String),rows=starters.map((id,index)=>{const info=playerInfoV18(id),current=Number(points?.[id]||0),projection=Math.max(0,projectionValue(id)),status=playerStatus(id,current,nfl);let remaining=0;if(status.kind==='remaining')remaining=projection;else if(status.kind==='live')remaining=Math.max(0,projection-current);return {id,slot:slots[index]||info.position||'FLEX',info,current,projection,projectedFinal:current+remaining,status}}),score=Number(matchup?.points||0),remaining=rows.reduce((sum,row)=>sum+Math.max(0,row.projectedFinal-row.current),0),counts={live:0,remaining:0,finished:0,out:0};rows.forEach(row=>counts[row.status.kind]=(counts[row.status.kind]||0)+1);return {team,matchup,rows,score,projected:score+remaining,counts}}
- function matchupSource(){if(Array.isArray(runtime.matchups))return runtime.matchups;return liveWeek()===leagueWeek()?(state.matchups||[]):[]}
+ function matchupSource(){const week=liveWeek();return runtime.weeks.get(week)?.rows||(state.league&&week===leagueWeek()&&week===Number(state.displayWeek)?state.matchups:[])||[]}
  function buildGames(nfl){const grouped=new Map();for(const m of matchupSource()){if(m.matchup_id==null)continue;const k=String(m.matchup_id);if(!grouped.has(k))grouped.set(k,[]);grouped.get(k).push(m)}return [...grouped].filter(([,g])=>g.length===2).map(([id,g])=>{const a=teamModel(teamByRoster(g[0].roster_id),g[0],nfl),b=teamModel(teamByRoster(g[1].roster_id),g[1],nfl);if(!a.team||!b.team)return null;const active=a.counts.live+b.counts.live,pending=a.counts.remaining+b.counts.remaining,finished=!active&&!pending,projectedWinner=Math.abs(a.projected-b.projected)<.01?null:(a.projected>b.projected?a:b),spread=Math.abs(a.projected-b.projected),prob=projectedWinner?(finished?100:Math.max(52,Math.min(95,Math.round(50+spread*2.15)))):50,status=finished?'final':active?'live':(a.score>0||b.score>0)?'open':'scheduled';return {id,a,b,active,pending,finished,projectedWinner,prob,status}}).filter(Boolean)}
  function snapshot(games){const out={savedAt:Date.now(),games:{},players:{}};for(const g of games){out.games[g.id]={a:g.a.score,b:g.b.score,leader:g.a.score===g.b.score?'tie':g.a.score>g.b.score?'a':'b',projected:g.projectedWinner===g.a?'a':g.projectedWinner===g.b?'b':'tie',status:g.status};for(const side of [g.a,g.b])for(const row of side.rows)out.players[`${side.team.roster.roster_id}:${row.id}`]={points:row.current,name:row.info.name,team:side.team.name}}return out}
  function detectNFLPlays(nfl){for(const game of nfl.games){const text=game.lastPlay.trim();if(!text||!game.lastPlayId)continue;const yards=Number(text.match(/(\d+)\s*yard/i)?.[1]||0),big=/touchdown|intercepted|fumble|blocked|safety/i.test(text)||yards>=20;if(!big)continue;const key=`play:${game.id}:${game.lastPlayId}`;if(runtime.pulse.some(x=>x.key===key))continue;const row={type:'big',text:`NFL BIG PLAY: ${text}`,detail:game.detail||'Live NFL action',ts:Date.now(),key};runtime.pulse.unshift(row);runtime.pulse=runtime.pulse.slice(0,30)}}
@@ -9111,18 +9169,81 @@ body.theme-christmas-v161 .topbar{border-bottom-color:#2f9a60}
  function feedHTML(){if(!runtime.pulse.length)return '<div class="live-event-empty-v167">Big plays, scoring swings and lead changes will appear here as the games unfold.</div>';return runtime.pulse.map(e=>`<div class="live-event-v167 ${esc(e.type)}"><time>${new Date(e.ts).toLocaleTimeString([],{hour:'numeric',minute:'2-digit'})}</time><span class="live-event-icon-v167">${eventIcon(e.type)}</span><div><strong>${esc(e.text)}</strong>${e.detail?`<small>${esc(e.detail)}</small>`:''}</div></div>`).join('')}
  function overviewHTML(games,belt){const teams=games.flatMap(g=>[g.a,g.b]).sort((a,b)=>b.score-a.score),closest=[...games].sort((a,b)=>Math.abs(a.a.score-a.b.score)-Math.abs(b.a.score-b.b.score))[0],leaders=teams.slice(0,3),holder=beltHolderForWeek(belt,liveWeek()),current=liveWeek()===leagueWeek();return `<div class="live-overview-card-v167"><small>Highest Score Race</small><strong>${leaders.map((x,i)=>`<b>#${i+1}</b> ${esc(x.team.name)} ${x.score.toFixed(1)}`).join('<br>')||'Waiting for scoring'}</strong></div><div class="live-overview-card-v167"><small>Closest Matchup</small><strong>${closest?`${esc(closest.a.team.name)} ${closest.a.score.toFixed(1)} – ${esc(closest.b.team.name)} ${closest.b.score.toFixed(1)}`:'Waiting for matchups'}</strong></div><div class="live-overview-card-v167"><small>Belt Watch</small><strong>${holder?`${esc(holder)} ${current?'holds the belt':'entered the week with the belt'}${current&&belt.latestEvent?.week?` • ${esc(belt.latestEvent.detail)}`:''}`:'Loading belt history…'}</strong></div>`}
  function render(games,nfl,belt){
-  if(!activeRoot())return;const open=new Set([...runtime.root.querySelectorAll('details[open][data-game-id]')].map(x=>x.dataset.gameId)),anyLive=nfl.games.some(g=>g.state==='in'),allFinal=games.length&&games.every(g=>g.status==='final'),stateClass=anyLive?'':allFinal?'final':'waiting',stateText=anyLive?'NFL GAMES LIVE':allFinal?'ALL MATCHUPS FINAL':'WAITING FOR KICKOFF';
+  if(!activeRoot())return;const open=new Set([...runtime.root.querySelectorAll('details[open][data-game-id]')].map(x=>x.dataset.gameId)),anyLive=nfl.games.some(g=>g.state==='in'),allFinal=games.length&&games.every(g=>g.status==='final'),stateClass=anyLive?'':allFinal?'final':'waiting',stateText=anyLive?'NFL GAMES LIVE':allFinal?'ALL MATCHUPS FINAL':games.length?'WEEK '+liveWeek()+' SCORES':runtime.request?'CONNECTING':'SCORES UNAVAILABLE';
   const week=liveWeek(),options=Array.from({length:18},(_,i)=>`<option value="${i+1}" ${i+1===week?'selected':''}>Week ${i+1}</option>`).join(''),ordered=orderGames(games,belt);
-  runtime.root.innerHTML=`<div class="live-center-v167"><section class="live-command-v167"><div><div class="live-eyebrow-v167">Lone Star Dynasty</div><h2>Live Scores</h2><p>Tap any matchup for the position-by-position lineup battle.</p></div><div class="live-week-nav-v168"><button type="button" data-week-step="-1" ${week<=1?'disabled':''} aria-label="Previous week">‹</button><select class="live-week-select-v168" aria-label="Select fantasy week">${options}</select><button type="button" data-week-step="1" ${week>=18?'disabled':''} aria-label="Next week">›</button></div><div class="live-command-side-v167"><div class="live-state-v167 ${stateClass}">${stateText}</div><button type="button" class="live-refresh-v167">Refresh</button><div class="live-sync-v167">${nowLabel()} • ${anyLive?'8-sec live':'adaptive'}</div></div></section><section class="live-matchups-v167">${ordered.map((g,i)=>matchHTML(g,i,belt)).join('')||'<div class="live-loading-v167">Loading Week '+week+' matchups…</div>'}</section><section class="live-overview-v167">${overviewHTML(games,belt)}</section><section class="live-pulse-panel-v167"><div class="live-panel-head-v167"><h3>LSD Live Pulse</h3><span>Big plays • lead changes • projection flips</span></div><div class="live-feed-v167">${feedHTML()}</div></section></div>`;
+  runtime.root.innerHTML=`<div class="live-center-v167"><section class="live-command-v167"><div><div class="live-eyebrow-v167">Lone Star Dynasty</div><h2>Live Scores</h2><p>Tap any matchup for the position-by-position lineup battle.</p></div><div class="live-week-nav-v168"><button type="button" data-week-step="-1" ${week<=1?'disabled':''} aria-label="Previous week">‹</button><select class="live-week-select-v168" aria-label="Select fantasy week">${options}</select><button type="button" data-week-step="1" ${week>=18?'disabled':''} aria-label="Next week">›</button></div><div class="live-command-side-v167"><div class="live-state-v167 ${stateClass}">${stateText}</div><button type="button" class="live-refresh-v167" ${runtime.request?'disabled':''}>${runtime.request?'Refreshing…':'Refresh'}</button><div class="live-sync-v167">${runtime.issue&&games.length?esc(runtime.issue):runtime.weeks.get(week)?.at?`Updated ${new Date(runtime.weeks.get(week).at).toLocaleTimeString([],{hour:'numeric',minute:'2-digit'})} • ${anyLive?'8-sec live':'adaptive'}`:'Waiting for Sleeper'}</div></div></section><section class="live-matchups-v167">${ordered.map((g,i)=>matchHTML(g,i,belt)).join('')||'<div class="live-loading-v167">'+esc(runtime.issue||'Loading Week '+week+' matchups…')+'</div>'}</section><section class="live-overview-v167">${overviewHTML(games,belt)}</section><section class="live-pulse-panel-v167"><div class="live-panel-head-v167"><h3>LSD Live Pulse</h3><span>Big plays • lead changes • projection flips</span></div><div class="live-feed-v167">${feedHTML()}</div></section></div>`;
   runtime.root.querySelectorAll('details[data-game-id]').forEach(d=>{if(open.has(d.dataset.gameId))d.open=true});runtime.root.querySelector('.live-refresh-v167')?.addEventListener('click',()=>refresh(true));runtime.root.querySelectorAll('[data-week-step]').forEach(btn=>btn.addEventListener('click',()=>setWeek(week+Number(btn.dataset.weekStep||0))));runtime.root.querySelector('.live-week-select-v168')?.addEventListener('change',e=>setWeek(Number(e.target.value)));
  }
- function setWeek(next){next=Math.max(1,Math.min(18,Number(next)||leagueWeek()));if(next===liveWeek())return;runtime.week=next;runtime.matchups=null;runtime.nfl=null;runtime.projections=new Map();runtime.projectionAt=0;runtime.projectionWeek=0;runtime.busy=false;loadSession();if(activeRoot())runtime.root.innerHTML=`<div class="live-loading-v167">Loading Week ${next} matchups…</div>`;refresh(true)}
- function schedule(nfl){clearTimeout(runtime.timer);if(!activeRoot())return;const anyLive=nfl?.games?.some(g=>g.state==='in');runtime.refreshDelay=document.hidden?60000:anyLive?8000:nfl?.games?.some(g=>g.state==='pre')?30000:120000;runtime.timer=setTimeout(()=>refresh(false),runtime.refreshDelay)}
- async function refresh(manual){
-  if(runtime.busy||!activeRoot())return;runtime.busy=true;const button=runtime.root.querySelector('.live-refresh-v167');if(button){button.disabled=true;button.textContent='Refreshing…'}
-  try{const week=liveWeek(),projectionRequest=refreshProjections(),motwRequest=refreshMOTWHistory();const belt=reconcileBelt(runtime.belt),currentNFL=runtime.nfl||{ok:false,byTeam:new Map(),games:[]},readyGames=buildGames(currentNFL);if(readyGames.length){detectChanges(readyGames,currentNFL);if(!runtime.pulse.length)addPulse('info','LSD Live Game Center connected',`Week ${week} scoring is ready`);render(readyGames,currentNFL,belt)}const sleeperRequest=Promise.race([(week<leagueWeek()?v169HistoricalMatchups(LEAGUE_ID,week):getJSON(`https://api.sleeper.app/v1/league/${LEAGUE_ID}/matchups/${week}`)),new Promise((_,reject)=>setTimeout(()=>reject(new Error('Sleeper refresh timed out')),4500))]),[matchups,nfl]=await Promise.all([sleeperRequest,fetchNFL()]);if(week!==liveWeek())return;if(Array.isArray(matchups))runtime.matchups=matchups;runtime.nfl=nfl;let games=buildGames(nfl);detectChanges(games,nfl);render(games,nfl,reconcileBelt(runtime.belt));Promise.resolve(projectionRequest).then(()=>{if(activeRoot()&&week===liveWeek()){games=buildGames(nfl);render(games,nfl,reconcileBelt(runtime.belt))}});Promise.resolve(motwRequest).then(()=>{if(activeRoot()&&week===liveWeek())render(buildGames(nfl),nfl,reconcileBelt(runtime.belt))});if(!runtime.belt||runtime.beltWeek!==leagueWeek()||!runtime.beltAt)beltData().then(fresh=>{if(fresh&&activeRoot()&&runtime.nfl)render(buildGames(runtime.nfl),runtime.nfl,fresh)});schedule(nfl)}catch(e){console.warn('V169 live refresh',e);if(activeRoot()){if(!runtime.root.querySelector('.live-matchups-v167'))runtime.root.innerHTML='<div class="live-loading-v167">Live scores could not connect yet. Tap Refresh after the page finishes syncing with Sleeper.</div><button type="button" class="live-refresh-v167">Refresh</button>';const retry=runtime.root.querySelector('.live-refresh-v167');if(retry&&!retry.dataset.bound){retry.dataset.bound='1';retry.addEventListener('click',()=>refresh(true))}const feed=runtime.root.querySelector('.live-feed-v167');if(feed)feed.innerHTML=feedHTML();schedule(runtime.nfl)}}finally{runtime.busy=false;if(manual&&activeRoot()){const b=runtime.root.querySelector('.live-refresh-v167');if(b){b.disabled=false;b.textContent='Refresh'}}}
+ function paintLive(){
+  const nfl=runtime.nfl||emptyNFL();
+  render(buildGames(nfl),nfl,runtime.belt);
  }
- window.v167RenderLiveScores=function(el){clearTimeout(runtime.timer);runtime.root=el;if(!runtime.week)runtime.week=leagueWeek();loadSession();el.innerHTML='<div class="live-loading-v167">Connecting to Sleeper and the live NFL scoreboard…</div>';refresh(true)};
+ function setWeek(next){
+  next=Math.max(1,Math.min(18,Number(next)||leagueWeek()));
+  if(next===liveWeek())return;
+  runtime.week=next===leagueWeek()?0:next;runtime.request=null;
+  refresh();
+ }
+ function schedule(nfl){
+  clearTimeout(runtime.timer);if(!activeRoot())return;
+  const anyLive=nfl?.games?.some(g=>g.state==='in');
+  runtime.refreshDelay=document.hidden?60000:runtime.issue&&liveWeek()<=leagueWeek()?15000:anyLive?8000:nfl?.games?.some(g=>g.state==='pre')?30000:120000;
+  runtime.timer=setTimeout(refresh,runtime.refreshDelay);
+ }
+ async function refresh(){
+  if(runtime.request||!activeRoot())return;
+  clearTimeout(runtime.timer);
+  const job={root:runtime.root},revision=runtime.revision=(runtime.revision||0)+1;
+  runtime.request=job;
+  const stillHere=()=>activeRoot()&&runtime.root===job.root&&runtime.revision===revision;
+  const sameWeek=week=>stillHere()&&week===liveWeek();
+  runtime.issue='';
+  if(runtime.dataWeek!==liveWeek())runtime.nfl=null;
+  paintLive();
+  try{
+   await v170LoadLeague();
+   if(!stillHere())return;
+   const week=liveWeek();
+   if(runtime.dataWeek!==week){
+    runtime.dataWeek=week;runtime.nfl=null;runtime.projections=new Map();
+    runtime.projectionWeek=0;runtime.projectionAt=0;loadSession();paintLive();
+   }
+   // NFL status, projections, and history can finish later; none blocks scores.
+   if(week>=leagueWeek())fetchNFL().then(nfl=>{
+    if(!sameWeek(week))return;
+    if(nfl.ok||!runtime.nfl?.ok)runtime.nfl=nfl;
+    if(week===leagueWeek())detectNFLPlays(runtime.nfl);
+    paintLive();if(!runtime.request)schedule(runtime.nfl);
+   }).catch(()=>{});
+   const rows=await (week<leagueWeek()?v169HistoricalMatchups(LEAGUE_ID,week):v170WeekMatchups(LEAGUE_ID,week));
+   if(!sameWeek(week))return;
+   if(!rows.some(row=>row.matchup_id!=null)){
+    if(week>leagueWeek()){runtime.issue='No matchups posted for Week '+week+' yet.';return}
+    throw new Error('Sleeper has not returned matchup pairs');
+   }
+   runtime.weeks.set(week,{rows,at:Date.now()});
+   if(week===leagueWeek())v170PublishCurrentMatchups(week,rows);
+   const games=buildGames(runtime.nfl||emptyNFL());
+   if(!games.length)throw new Error('Sleeper returned no playable matchups');
+   if(week===leagueWeek())detectChanges(games,runtime.nfl||emptyNFL());
+   for(const enrich of [loadPlayersLazy,refreshProjections,refreshMOTWHistory,beltData]){
+    Promise.resolve().then(enrich).then(()=>{if(sameWeek(week))paintLive()}).catch(e=>console.warn('Live Scores detail unavailable',e));
+   }
+  }catch(error){
+   if(stillHere()){
+    console.warn('Live Scores connection failed',error);
+    runtime.issue=matchupSource().some(row=>row.matchup_id!=null)?'Sleeper unreachable • showing last loaded scores':'Sleeper didn’t respond. Tap Refresh to retry.';
+   }
+  }finally{
+   if(runtime.request===job){
+    runtime.request=null;
+    if(stillHere()){paintLive();schedule(runtime.nfl)}
+   }
+  }
+ }
+ window.v167RenderLiveScores=function(el){
+  clearTimeout(runtime.timer);runtime.root=el;runtime.request=null;refresh();
+ };
  document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible'&&activeRoot())refresh(true)});window.addEventListener('focus',()=>{if(activeRoot())refresh(true)});
 })();
 </script>

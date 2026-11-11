@@ -1,4 +1,4 @@
-const CACHE_NAME = 'lone-star-dynasty-v169-matchup-priority';
+const CACHE_NAME = 'lone-star-dynasty-v170-scoreboard-recovery';
 const APP_SHELL = [
   './',
   './index.html',
@@ -14,15 +14,20 @@ const APP_SHELL = [
 ];
 
 self.addEventListener('install', event => {
-  event.waitUntil(caches.open(CACHE_NAME).then(cache => cache.addAll(APP_SHELL)));
-  self.skipWaiting();
+  event.waitUntil((async () => {
+    const cache = await caches.open(CACHE_NAME);
+    await cache.add(new Request('./index.html', { cache: 'reload' }));
+    await Promise.allSettled(APP_SHELL.filter(path => path !== './index.html').map(path => cache.add(path)));
+    await self.skipWaiting();
+  })());
 });
 
 self.addEventListener('activate', event => {
   event.waitUntil(
-    caches.keys().then(keys => Promise.all(keys.filter(k => k !== CACHE_NAME).map(k => caches.delete(k))))
+    caches.keys()
+      .then(keys => Promise.all(keys.filter(k => k.startsWith('lone-star-dynasty-') && k !== CACHE_NAME).map(k => caches.delete(k))))
+      .then(() => self.clients.claim())
   );
-  self.clients.claim();
 });
 
 self.addEventListener('fetch', event => {
@@ -36,8 +41,10 @@ self.addEventListener('fetch', event => {
     event.respondWith(
       fetch(req, { cache: 'no-store' })
         .then(res => {
-          const copy = res.clone();
-          caches.open(CACHE_NAME).then(cache => cache.put('./index.html', copy));
+          if (res.ok) {
+            const copy = res.clone();
+            event.waitUntil(caches.open(CACHE_NAME).then(cache => cache.put('./index.html', copy)).catch(() => {}));
+          }
           return res;
         })
         .catch(async () => (await caches.match('./index.html')) || caches.match('./offline.html'))
