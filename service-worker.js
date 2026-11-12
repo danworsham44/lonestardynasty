@@ -1,4 +1,4 @@
-const CACHE_NAME = 'lone-star-dynasty-v173-closest-matchup';
+const CACHE_NAME = 'lone-star-dynasty-v174-team-avatar';
 const APP_SHELL = [
   './',
   './index.html',
@@ -9,6 +9,7 @@ const APP_SHELL = [
   './icon-192.png',
   './icon-512.png',
   './lone-star-logo.jpg',
+  './dynastydeezzznutzzz-logo.jpg',
   './miguel-mendoza-memorial.jpg',
   './halloween-scene-v165.png'
 ];

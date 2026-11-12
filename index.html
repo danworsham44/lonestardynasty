@@ -13,7 +13,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
 <meta name="mobile-web-app-capable" content="yes" />
 <meta name="application-name" content="Lone Star Dynasty" />
-<meta name="lsd-build" content="v173" />
+<meta name="lsd-build" content="v174" />
 <title>Lone Star Dynasty</title>
 <style>
 :root{--ink:#07101a;--ink2:#0d1824;--panel:rgba(10,18,28,.91);--paper:#efe4cc;--muted:#aeb7c2;--red:#c83632;--red2:#8d201f;--line:rgba(239,228,204,.18);--gold:#c49a47;--green:#64b76d;--shadow:0 18px 50px rgba(0,0,0,.34)}
@@ -864,7 +864,12 @@ const $=s=>document.querySelector(s); const esc=s=>String(s??'').replace(/[&<>"'
 const norm=s=>String(s||'').toLowerCase().replace(/[’']/g,'').replace(/[^a-z0-9.]+/g,' ').trim();
 function ownerFor(name){let n=norm(name); return OWNERS[n]||OWNERS[n.replace(/ /g,'')]||'League Owner'}
 function avatarUrl(raw){if(!raw)return 'lone-star-logo.jpg';const id=String(raw);if(/^https?:\/\//i.test(id))return id;return `https://sleepercdn.com/avatars/thumbs/${id}`}
-function teamAvatar(user,name=''){const n=norm(name);const restorePrevious=n==='youngsince92'||n==='ceedee nutz';const raw=restorePrevious?(user?.avatar||user?.metadata?.avatar):user?.metadata?.avatar;return avatarUrl(raw)}
+function teamAvatar(user,name=''){
+ const n=norm(name);
+ if(norm(name||user?.metadata?.team_name)==='dynastydeezzznutzzz')return user?.metadata?.avatar?avatarUrl(user.metadata.avatar):'dynastydeezzznutzzz-logo.jpg';
+ const restorePrevious=n==='youngsince92'||n==='ceedee nutz';
+ return avatarUrl(restorePrevious?(user?.avatar||user?.metadata?.avatar):user?.metadata?.avatar);
+}
 function imgFallback(el){if(!el||el.dataset.fallbackDone)return;el.dataset.fallbackDone='1';el.src='lone-star-logo.jpg'}
 function teamName(user,roster){return user?.metadata?.team_name||user?.display_name||`Team ${roster?.roster_id||''}`}
 /* V117 — Juan franchise continuity: current Juan-owned team is the same franchise as 2025 roster 10, regardless of team-name changes. */
@@ -939,7 +944,7 @@ async function bootstrap(){clearStaleSleeperSnapshots();renderFallback();try{
  }catch(e){console.error(e);$('#liveDot').classList.add('bad');$('#liveText').textContent='Live fetch blocked here • site will reconnect when hosted';const sync=$('#syncStatus');if(sync)sync.textContent='Sleeper sync failed • refresh to retry';renderAll()}}
 async function getRecentTransactions(base,week){const maxRound=17;const jobs=[];for(let w=1;w<=maxRound;w++)jobs.push(getJSON(base+`/transactions/${w}`).catch(()=>[]));const batches=await Promise.all(jobs);const seen=new Set(),out=[];for(const a of batches.flat()){const id=String(a.transaction_id||`${a.created||0}-${a.type||''}`);if(seen.has(id))continue;seen.add(id);out.push(a)}return out.sort((a,b)=>(b.created||0)-(a.created||0))}
 function mapTeams(){state.teams=state.rosters.map(r=>{const u=state.users.find(x=>String(x.user_id)===String(r.owner_id));const name=teamName(u,r);return {name,owner:ownerFor(name),avatar:teamAvatar(u,name),user:u,roster:r}})}
-function fallbackTeam(name,i){return {name,owner:ownerFor(name),avatar:'lone-star-logo.jpg',user:null,roster:{roster_id:i+1,players:[],starters:[],settings:{wins:0,losses:0,ties:0,fpts:0,division:i<5?1:2}}}}
+function fallbackTeam(name,i){return {name,owner:ownerFor(name),avatar:teamAvatar(null,name),user:null,roster:{roster_id:i+1,players:[],starters:[],settings:{wins:0,losses:0,ties:0,fpts:0,division:i<5?1:2}}}}
 function renderFallback(){state.teams=FALLBACK_TEAMS.map(fallbackTeam);renderMenus();renderAll();renderChat();renderVotes()}
 function renderMenus(){const tm=$('#teamsMenu');tm.innerHTML=state.teams.map((t,i)=>`<button type="button" class="drop-item" data-roster="${t.roster.roster_id}"><img class="drop-avatar" src="${esc(t.avatar)}" onerror="imgFallback(this)" alt="${esc(t.name)} avatar"><span><span class="drop-name">${esc(t.name)}</span><span class="drop-owner">Owner: ${esc(t.owner)}</span></span></button>`).join('');
  $('#toolsMenu').innerHTML=TOOL_LIST.map(([id,label,icon])=>`<button type="button" class="drop-item" data-tool="${id}"><span class="tool-icon">${icon}</span><span class="drop-name">${label}</span></button>`).join('');$('#toolsMenu').querySelectorAll('[data-tool]').forEach(b=>b.addEventListener('click',()=>renderTool(b.dataset.tool)));
@@ -7932,7 +7937,7 @@ bootstrap();
 <script>
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
-    navigator.serviceWorker.register('./service-worker.js?v=173', {updateViaCache:'none'}).then(reg => reg.update()).catch(() => {});
+    navigator.serviceWorker.register('./service-worker.js?v=174', {updateViaCache:'none'}).then(reg => reg.update()).catch(() => {});
   });
 }
 </script>
