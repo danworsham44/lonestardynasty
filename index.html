@@ -13,7 +13,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
 <meta name="mobile-web-app-capable" content="yes" />
 <meta name="application-name" content="Lone Star Dynasty" />
-<meta name="lsd-build" content="v175" />
+<meta name="lsd-build" content="v176" />
 <title>Lone Star Dynasty</title>
 <style>
 :root{--ink:#07101a;--ink2:#0d1824;--panel:rgba(10,18,28,.91);--paper:#efe4cc;--muted:#aeb7c2;--red:#c83632;--red2:#8d201f;--line:rgba(239,228,204,.18);--gold:#c49a47;--green:#64b76d;--shadow:0 18px 50px rgba(0,0,0,.34)}
@@ -7937,7 +7937,7 @@ bootstrap();
 <script>
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
-    navigator.serviceWorker.register('./service-worker.js?v=175', {updateViaCache:'none'}).then(reg => reg.update()).catch(() => {});
+    navigator.serviceWorker.register('./service-worker.js?v=176', {updateViaCache:'none'}).then(reg => reg.update()).catch(() => {});
   });
 }
 </script>
@@ -9099,7 +9099,7 @@ body.theme-christmas-v161 .topbar{border-bottom-color:#2f9a60}
  function activeRoot(){return runtime.root?.isConnected&&document.getElementById('toolMain')===runtime.root&&document.getElementById('toolPage')?.classList.contains('active')}
  function pulseStorageKey(){return `lsd-v168-live-pulse-${state.league?.season||state.nfl?.season||2026}-${liveWeek()}`}
  function snapshotStorageKey(){return `lsd-v168-live-snapshot-${state.league?.season||state.nfl?.season||2026}-${liveWeek()}`}
- function loadSession(){const key=pulseStorageKey();if(runtime.weekKey===key)return;runtime.weekKey=key;runtime.pulse=[];runtime.previous=null;try{runtime.pulse=JSON.parse(sessionStorage.getItem(key)||'[]').filter(row=>row&&!(/^NFL BIG PLAY: /i.test(row.text||'')&&hideRoutineKickoff(row.text))).slice(0,30)}catch{}try{const snap=JSON.parse(sessionStorage.getItem(snapshotStorageKey())||'null');if(snap&&Date.now()-Number(snap.savedAt||0)<120000)runtime.previous=snap}catch{}}
+ function loadSession(){const key=pulseStorageKey();if(runtime.weekKey===key)return;runtime.weekKey=key;runtime.pulse=[];runtime.previous=null;try{runtime.pulse=JSON.parse(sessionStorage.getItem(key)||'[]').filter(row=>row&&!(/^NFL BIG PLAY: /i.test(row.text||'')&&hideRoutineSpecialTeamsPlay(row.text))).slice(0,30)}catch{}try{const snap=JSON.parse(sessionStorage.getItem(snapshotStorageKey())||'null');if(snap&&Date.now()-Number(snap.savedAt||0)<120000)runtime.previous=snap}catch{}}
  function eventIcon(type){return {big:'💥',score:'🏈',lead:'🔄',projection:'📈',belt:'🏆',final:'✅',alert:'🚨',info:'⭐'}[type]||'⭐'}
  function addPulse(type,text,detail=''){if(!text)return;const duplicate=runtime.pulse.find(x=>x.text===text&&Date.now()-x.ts<45000);if(duplicate)return;runtime.pulse.unshift({type,text,detail,ts:Date.now()});runtime.pulse=runtime.pulse.slice(0,30);try{sessionStorage.setItem(pulseStorageKey(),JSON.stringify(runtime.pulse))}catch{}}
  async function fetchNFL(){
@@ -9185,11 +9185,14 @@ body.theme-christmas-v161 .topbar{border-bottom-color:#2f9a60}
   }).filter(Boolean);
  }
  function snapshot(games){const out={savedAt:Date.now(),games:{},players:{}};for(const g of games){out.games[g.id]={a:g.a.score,b:g.b.score,leader:g.a.score===g.b.score?'tie':g.a.score>g.b.score?'a':'b',projected:g.projectedWinner===g.a?'a':g.projectedWinner===g.b?'b':'tie',status:g.status};for(const side of [g.a,g.b])for(const row of side.rows)out.players[`${side.team.roster.roster_id}:${row.id}`]={points:row.current,name:row.info.name,team:side.team.name}}return out}
- function hideRoutineKickoff(text){
+ function hideRoutineSpecialTeamsPlay(text){
   const kickoff=/\bkick[\s-]?offs?\b|\bkicks?\s+off\b|\bkicks?\s+\d+\s+yards?\s+from\b|\bonside\s+kick\b/i.test(text);
-  return kickoff&&(!/\b(?:touchdown|TD)\b/i.test(text)||/\b(?:no play|no touchdown|touchdown nullified)\b/i.test(text));
+  const punt=/\b(?:punt(?:s|ed|ing)?|punt-return)\b/i.test(text.replace(/\bfake[\s-]+punt\b/gi,''));
+  const nullified=/\b(?:no play|no touchdown|touchdown nullified)\b/i.test(text);
+  if(kickoff)return nullified||!/\b(?:touchdown|TD)\b/i.test(text);
+  return punt&&(nullified||!/\b(?:touchdown|TD|safety)\b/i.test(text));
  }
- function detectNFLPlays(nfl){for(const game of nfl.games){const text=game.lastPlay.trim();if(!text||!game.lastPlayId||hideRoutineKickoff(text))continue;const yards=Number(text.match(/(\d+)\s*yard/i)?.[1]||0),big=/touchdown|\bTD\b|intercepted|fumble|blocked|safety/i.test(text)||yards>=20;if(!big)continue;const key=`play:${game.id}:${game.lastPlayId}`;if(runtime.pulse.some(x=>x.key===key))continue;const row={type:'big',text:`NFL BIG PLAY: ${text}`,detail:game.detail||'Live NFL action',ts:Date.now(),key};runtime.pulse.unshift(row);runtime.pulse=runtime.pulse.slice(0,30)}}
+ function detectNFLPlays(nfl){for(const game of nfl.games){const text=game.lastPlay.trim();if(!text||!game.lastPlayId||hideRoutineSpecialTeamsPlay(text))continue;const yards=Number(text.match(/(\d+)\s*yard/i)?.[1]||0),big=/touchdown|\bTD\b|intercepted|fumble|blocked|safety/i.test(text)||yards>=20;if(!big)continue;const key=`play:${game.id}:${game.lastPlayId}`;if(runtime.pulse.some(x=>x.key===key))continue;const row={type:'big',text:`NFL BIG PLAY: ${text}`,detail:game.detail||'Live NFL action',ts:Date.now(),key};runtime.pulse.unshift(row);runtime.pulse=runtime.pulse.slice(0,30)}}
  function detectChanges(games,nfl){
   const next=snapshot(games),prev=runtime.previous;runtime.changed.clear();detectNFLPlays(nfl);
   if(prev){
