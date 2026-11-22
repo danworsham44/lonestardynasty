@@ -1,4 +1,4 @@
-const CACHE_NAME = 'lone-star-dynasty-v176-pulse-punt-filter';
+const CACHE_NAME = 'lone-star-dynasty-v178-thanksgiving-live-pulse';
 const APP_SHELL = [
   './',
   './index.html',
