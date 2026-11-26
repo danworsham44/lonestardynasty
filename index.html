@@ -13,7 +13,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
 <meta name="mobile-web-app-capable" content="yes" />
 <meta name="application-name" content="Lone Star Dynasty" />
-<meta name="lsd-build" content="v178" />
+<meta name="lsd-build" content="v179" />
 <title>Lone Star Dynasty</title>
 <style>
 :root{--ink:#07101a;--ink2:#0d1824;--panel:rgba(10,18,28,.91);--paper:#efe4cc;--muted:#aeb7c2;--red:#c83632;--red2:#8d201f;--line:rgba(239,228,204,.18);--gold:#c49a47;--green:#64b76d;--shadow:0 18px 50px rgba(0,0,0,.34)}
@@ -9142,6 +9142,7 @@ body.theme-thanksgiving-v161 .footer{
  const runtime={root:null,timer:null,request:null,pulse:[],previous:null,bursts:new Map(),changed:new Set(),nfl:null,belt:null,beltAt:0,beltWeek:0,beltRequest:null,motwHistory:[],motwAt:0,motwKey:'',projectionAt:0,projectionWeek:0,projections:new Map(),weeks:new Map(),week:0,dataWeek:0,weekKey:'',issue:'',refreshDelay:30000};
  const PULSE_LIMIT=50, BIG_PLAY_POINTS=400, BURST_MS=90000;
  const layoutMarkup=new WeakMap(),sectionMarkup=new WeakMap(),feedMarkup=new WeakMap();
+ const sharedPulse=new Map();
  const aliases={JAC:'JAX',WSH:'WAS',LA:'LAR',OAK:'LV'};
  const code=x=>aliases[String(x||'').toUpperCase()]||String(x||'').toUpperCase();
  const fmt=n=>Number(n||0).toFixed(2);
@@ -9318,7 +9319,32 @@ body.theme-thanksgiving-v161 .footer{
   const side=team=>`<div class="live-compact-team-v168 ${deciding&&g.leader===team?'score-leader':''}"><img src="${esc(team.team.avatar)}" onerror="this.src='lone-star-logo.jpg'" alt=""><span>${liveTeamName(team.team,ranks)}${context.holderName&&norm(context.holderName)===norm(team.team.name)?'<em class="live-defender-v172">Defending Belt</em>':''}<small>${deciding&&g.leader===team?`<em class="live-result-v171">${result}</em>`:''}${g.canProject?`${deciding&&g.leader===team?' • ':''}Proj ${team.projected.toFixed(1)}`:''}</small></span><b>${team.score.toFixed(2)}</b></div>`;
   return `<details class="live-match-card-v167 ${g.status} ${motw?'motw':''} ${beltGame?'belt':''}" data-game-id="${esc(g.id)}"><summary class="live-match-summary-v168"><div class="live-badges-v167"><span class="live-badge-v167 ${g.status==='live'?'live':''}">${statusText}</span>${motw?'<span class="live-badge-v167 motw">MOTW</span>':''}${beltGame?'<span class="live-badge-v167 belt">BELT MATCH</span>':''}</div><div class="live-compact-versus-v168">${side(g.a)}<span class="live-vs-v168">VS</span>${side(g.b)}</div><span class="live-expand-v168">VIEW LINEUPS</span></summary><div class="live-expanded-v168"><div class="live-projection-v167"><strong>${projectionTitle}</strong><span>${projectionScore}</span></div><div class="live-counts-v167"><div class="live-count-side-v167">${countHTML(g.a)}</div><div class="live-count-side-v167">${countHTML(g.b)}</div></div>${comparisonHTML(g)}</div></details>`
  }
- function feedHTML(){if(!runtime.pulse.length)return '<div class="live-event-empty-v167">Big plays, scoring swings and lead changes will appear here as the games unfold.</div>';return runtime.pulse.map(e=>`<div class="live-event-v167 ${esc(e.type)}" data-pulse-id="${esc(e.id)}"><time>${new Date(e.ts).toLocaleTimeString([],{hour:'numeric',minute:'2-digit'})}</time><span class="live-event-icon-v167">${eventIcon(e.type)}</span><div><strong>${esc(e.text)}</strong>${e.detail?`<small>${esc(e.detail)}</small>`:''}</div></div>`).join('')}
+ function sharedEvents(){
+  const data=sharedPulse.get(pulseStorageKey());
+  if(!data?.enabled||!data.checkedAt)return null;
+  return data.events.slice(0,PULSE_LIMIT).map(e=>{
+   const name=id=>teamByRoster(Number(id))?.name||'Roster '+id, points=n=>fmt(n/100);
+   if(e.type==='lead')return {...e,text:`${name(e.roster)} took the lead over ${name(e.other)}`,detail:`${points(e.score)}–${points(e.otherScore)}`};
+   if(e.type==='big')return {...e,text:`${playerInfoV18(e.player).name} added ${points(e.delta)} fantasy points for ${name(e.roster)}`,detail:`${e.burst?'Quick scoring burst • ':''}${points(e.total)} total points`};
+   return null;
+  }).filter(Boolean);
+ }
+ async function syncSharedPulse(week){
+  const key=pulseStorageKey(),season=state.league?.season||state.nfl?.season||2026;
+  const previous=sharedPulse.get(key);
+  if(previous&&Date.now()-previous.fetchedAt<(previous.enabled===false?900000:45000))return;
+  sharedPulse.set(key,{...previous,fetchedAt:Date.now()});
+  try{
+   const response=await fetch(`/.netlify/functions/pulse-feed?season=${encodeURIComponent(season)}&week=${week}`,{signal:AbortSignal.timeout(5000)});
+   if(!response.ok)return;
+   const data=await response.json();
+   if(data.enabled===false||data.enabled===true&&Array.isArray(data.events)){
+    sharedPulse.set(key,{...data,fetchedAt:Date.now()});
+    if(key===pulseStorageKey()&&activeRoot())paintLive();
+   }
+  }catch{}
+ }
+ function feedHTML(){const events=sharedEvents()??runtime.pulse;if(!events.length)return '<div class="live-event-empty-v167">Big plays, scoring swings and lead changes will appear here as the games unfold.</div>';return events.map(e=>`<div class="live-event-v167 ${esc(e.type)}" data-pulse-id="${esc(e.id)}"><time>${new Date(e.ts).toLocaleTimeString([],{hour:'numeric',minute:'2-digit'})}</time><span class="live-event-icon-v167">${eventIcon(e.type)}</span><div><strong>${esc(e.text)}</strong>${e.detail?`<small>${esc(e.detail)}</small>`:''}</div></div>`).join('')}
  function updateFeed(feed){
   const html=feedHTML();
   if(feedMarkup.get(feed)===html)return;
@@ -9351,7 +9377,7 @@ body.theme-thanksgiving-v161 .footer{
   const ranks=new Map(sortedStandings().map((team,i)=>[String(team.roster?.roster_id),i+1]));
   if(!activeRoot())return;const open=new Set([...runtime.root.querySelectorAll('details[open][data-game-id]')].map(x=>x.dataset.gameId)),anyLive=nfl.games.some(g=>g.state==='in'),allFinal=games.length&&games.every(g=>g.status==='final'),stateClass=anyLive?'':allFinal?'final':'waiting',stateText=anyLive?'NFL GAMES LIVE':allFinal?'ALL MATCHUPS FINAL':games.length?'WEEK '+liveWeek()+' SCORES':runtime.request?'CONNECTING':'SCORES UNAVAILABLE';
   const week=liveWeek(),options=Array.from({length:18},(_,i)=>`<option value="${i+1}" ${i+1===week?'selected':''}>Week ${i+1}</option>`).join(''),ordered=orderGames(games,belt);
-  const html=`<div class="live-center-v167"><section class="live-command-v167"><div><div class="live-eyebrow-v167">Lone Star Dynasty</div><h2>Live Scores</h2><p>Tap any matchup for the position-by-position lineup battle.</p></div><div class="live-week-nav-v168"><button type="button" data-week-step="-1" ${week<=1?'disabled':''} aria-label="Previous week">‹</button><select class="live-week-select-v168" aria-label="Select fantasy week">${options}</select><button type="button" data-week-step="1" ${week>=18?'disabled':''} aria-label="Next week">›</button></div><div class="live-command-side-v167"><div class="live-state-v167 ${stateClass}">${stateText}</div><button type="button" class="live-refresh-v167" ${runtime.request?'disabled':''}>${runtime.request?'Refreshing…':'Refresh'}</button><div class="live-sync-v167">${runtime.issue&&games.length?esc(runtime.issue):runtime.weeks.get(week)?.at?`Updated ${new Date(runtime.weeks.get(week).at).toLocaleTimeString([],{hour:'numeric',minute:'2-digit'})} • ${anyLive?'8-sec live':'adaptive'}`:'Waiting for Sleeper'}</div></div></section><section class="live-matchups-v167">${ordered.map((g,i)=>matchHTML(g,i,belt,ranks)).join('')||'<div class="live-loading-v167">'+esc(runtime.issue||'Loading Week '+week+' matchups…')+'</div>'}</section><section class="live-overview-v167">${overviewHTML(games,belt)}</section><section class="live-pulse-panel-v167"><div class="live-panel-head-v167"><h3>LSD Live Pulse</h3><span>Big plays • lead changes • projection flips</span></div><div class="live-feed-v167" tabindex="0" role="region" aria-label="LSD Live Pulse activity"></div></section></div>`;
+  const html=`<div class="live-center-v167"><section class="live-command-v167"><div><div class="live-eyebrow-v167">Lone Star Dynasty</div><h2>Live Scores</h2><p>Tap any matchup for the position-by-position lineup battle.</p></div><div class="live-week-nav-v168"><button type="button" data-week-step="-1" ${week<=1?'disabled':''} aria-label="Previous week">‹</button><select class="live-week-select-v168" aria-label="Select fantasy week">${options}</select><button type="button" data-week-step="1" ${week>=18?'disabled':''} aria-label="Next week">›</button></div><div class="live-command-side-v167"><div class="live-state-v167 ${stateClass}">${stateText}</div><button type="button" class="live-refresh-v167" ${runtime.request?'disabled':''}>${runtime.request?'Refreshing…':'Refresh'}</button><div class="live-sync-v167">${runtime.issue&&games.length?esc(runtime.issue):runtime.weeks.get(week)?.at?`Updated ${new Date(runtime.weeks.get(week).at).toLocaleTimeString([],{hour:'numeric',minute:'2-digit'})} • ${anyLive?'8-sec live':'adaptive'}`:'Waiting for Sleeper'}</div></div></section><section class="live-matchups-v167">${ordered.map((g,i)=>matchHTML(g,i,belt,ranks)).join('')||'<div class="live-loading-v167">'+esc(runtime.issue||'Loading Week '+week+' matchups…')+'</div>'}</section><section class="live-overview-v167">${overviewHTML(games,belt)}</section><section class="live-pulse-panel-v167"><div class="live-panel-head-v167"><h3>LSD Live Pulse</h3><span><span data-pulse-source></span></span></div><div class="live-feed-v167" tabindex="0" role="region" aria-label="LSD Live Pulse activity"></div></section></div>`;
   const layout=runtime.root.firstElementChild;
   const onSameWeek=layout?.dataset.pulseWeek===runtime.weekKey;
   const panel=onSameWeek?layout.querySelector('.live-pulse-panel-v167'):null;
@@ -9384,6 +9410,9 @@ body.theme-thanksgiving-v161 .footer{
   }
   currentLayout.querySelectorAll('details[data-game-id]').forEach(d=>{if(open.has(d.dataset.gameId)&&onSameWeek)d.open=true});
   const feed=currentLayout.querySelector('.live-feed-v167');
+  const source=currentLayout.querySelector('[data-pulse-source]'),shared=sharedPulse.get(runtime.weekKey);
+  const sourceText=shared?.enabled&&shared.checkedAt?'Shared feed • scoring swings & lead changes':shared?.enabled?'Shared feed starting • device activity for now':'Device feed • activity recorded while open';
+  if(source.textContent!==sourceText)source.textContent=sourceText;
   updateFeed(feed);
   if(keepPagePosition){
    const movement=panel.getBoundingClientRect().top-panelTop;
@@ -9424,6 +9453,7 @@ body.theme-thanksgiving-v161 .footer{
    await v170LoadLeague();
    if(!stillHere())return;
    const week=liveWeek();
+   if(week<=leagueWeek()&&!document.hidden)syncSharedPulse(week);
    if(runtime.dataWeek!==week){
     runtime.dataWeek=week;runtime.nfl=null;runtime.projections=new Map();
     runtime.projectionWeek=0;runtime.projectionAt=0;paintLive();
